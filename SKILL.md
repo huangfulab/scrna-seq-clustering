@@ -78,22 +78,22 @@ Use `scaffold_next_step(target_dir)` from `scripts/scaffold.R` to copy one step'
 
 ### Pipeline overview
 
-Node labels show `perturbseq step` / `plain step`. The single-lane shortcut (section 5) skips the batch-effect/bad-cluster-removal pair for both profiles.
+Shown as the 11-step perturbseq profile; see `references/pipeline-plain.md` for the 10-step plain-profile equivalent (each perturbseq step number maps to plain step number minus one, from step2 onward — plain has no `step1_load`). The single-lane shortcut (section 5) skips the batch-effect/bad-cluster-removal pair in both profiles.
 
 ```mermaid
 flowchart TD
-    S1["step1_load<br/>(perturbseq only)"] -->|"fig2: guide origin by UMI threshold"| S2["step2_assign /<br/>step1_load_qc"]
-    S2 -->|"fig1: QC violin<br/>(re-run after confirming)"| S3["step3_doublet /<br/>step2_doublet"]
-    S3 -->|"fig3: MOI vs UMI count<br/>(re-run after confirming)"| S4["step4_filter /<br/>step3_filter"]
-    S4 --> S5["step5_PCA /<br/>step4_PCA"]
+    S1["step1_load"] -->|"fig2: guide origin by UMI threshold"| S2["step2_assign"]
+    S2 -->|"fig1: QC violin<br/>(re-run after confirming)"| S3["step3_doublet"]
+    S3 -->|"fig3: MOI vs UMI count<br/>(re-run after confirming)"| S4["step4_filter"]
+    S4 --> S5["step5_PCA"]
     S5 -->|"fig1: elbow plot"| SL{"single lane?"}
-    SL -->|yes| S8["step8_res /<br/>step7_res"]
-    SL -->|"no — confirm marker panel first"| S6["step6_batch_effect /<br/>step5_batch_effect"]
-    S6 -->|"UMAP + dotplot + violin + lane figs"| S7["step7_rm_badcl /<br/>step6_rm_badcl"]
+    SL -->|yes| S8["step8_res"]
+    SL -->|"no — confirm marker panel first"| S6["step6_batch_effect"]
+    S6 -->|"UMAP + dotplot + violin + lane figs"| S7["step7_rm_badcl"]
     S7 --> S8
-    S8 -->|"resolution-sweep figs"| S9["step9_seed /<br/>step8_seed"]
-    S9 -->|"seed-sweep figs"| S10["step10_cluster_final /<br/>step9_cluster_final"]
-    S10 -->|"final UMAP + marker dotplot"| S11["step11_cell_type /<br/>step10_cell_type"]
+    S8 -->|"resolution-sweep figs"| S9["step9_seed"]
+    S9 -->|"seed-sweep figs"| S10["step10_cluster_final"]
+    S10 -->|"final UMAP + marker dotplot"| S11["step11_cell_type"]
 ```
 
 ### Checkpoint table (perturbseq profile — see `references/pipeline-plain.md` for the 10-step plain-profile equivalent)
