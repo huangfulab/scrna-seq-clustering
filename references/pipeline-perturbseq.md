@@ -44,6 +44,10 @@ If `config.lanes` has exactly one entry, there's no second lane to compare again
 
 **Checkpoint (all four fig sets, across resolutions):** explain resolution as a "how finely to split" knob — low resolution merges similar cell states into fewer, bigger clusters; high resolution splits into more, smaller ones, some of which may just be noise or a QC-driven artifact rather than real biology. Ask the user to pick the lowest resolution where one cluster clearly stands out as low-quality (e.g. globally low gene count, or all in one lane instead of spread across lanes — a sign of a batch/technical artifact rather than real biology) so it can be removed. → `config.bad_cluster_removal.resolution`, `config.bad_cluster_removal.cluster_rm`.
 
+## No-bad-cluster shortcut
+
+If nothing looked bad across the resolution sweep — no cluster stands out as low-quality or lane-driven at any of the 6 resolutions — there's nothing to remove. Skip `step7_rm_badcl` and `step8_res` as a pair rather than scaffolding either as a no-op or a redundant recompute: recomputing HVG/scale/PCA/neighbors/UMAP/clusters on the exact same cells `step6_batch_effect` already clustered would only reproduce that same result. Set `config.bad_cluster_removal.no_bad_cluster: true`, leave `cluster_rm: null`, and copy the chosen `bad_cluster_removal.resolution` into `config.final_clustering.final_resolution` — that resolution IS the final one, since there's no separate resweep to reconsider it from. Scaffold `step9_seed` directly after this; its `process.R` reads `step6_batch_effect`'s `obj5_UMAP.qs2` directly instead of `step8_res`'s `obj7_cluster2.qs2` when this flag is set.
+
 ## step7_rm_badcl — drop the flagged cluster
 
 Purely mechanical: drops every cell in `bad_cluster_removal.cluster_rm` at `bad_cluster_removal.resolution`. Nothing new to ask — still a hard stop so the user can confirm the removal count looks sane.

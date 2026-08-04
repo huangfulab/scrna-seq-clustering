@@ -2,8 +2,11 @@
 source(here::here("init.R"))
 
 # Filled in by the user after inspecting step5_batch_effect/figs — see
-# config.bad_cluster_removal.{resolution,cluster_rm}. If cluster_rm is null,
-# no bad cluster was identified and this step is a no-op passthrough.
+# config.bad_cluster_removal.{resolution,cluster_rm}. This step is only ever
+# scaffolded when a bad cluster WAS found. If nothing looked bad at any swept
+# resolution, don't scaffold this step at all — set
+# config.bad_cluster_removal.no_bad_cluster: true instead and skip straight to
+# step8_seed (see SKILL.md section 5's no-bad-cluster shortcut).
 RESOLUTION <- config$bad_cluster_removal$resolution
 CLUSTER_RM <- config$bad_cluster_removal$cluster_rm
 stopifnot(!is.null(RESOLUTION), !is.null(CLUSTER_RM))

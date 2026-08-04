@@ -51,9 +51,19 @@ Do this editing pass **before** calling `scaffold_next_step()` for step1 (sectio
 
 Full key-by-key schema and explanation: `references/conventions.md`.
 
-### 5. Single-lane shortcut
+### 5. Shortcuts that skip steps entirely
 
-If the destination has only one lane/sample (`config.lanes` has exactly one entry), there's no batch effect to check — nothing to compare that one lane against. Skip `step6_batch_effect`/`step7_rm_badcl` (perturbseq) or `step5_batch_effect`/`step6_rm_badcl` (plain) as separate scaffolded steps entirely: after the PCA step is confirmed, go straight to scaffolding `step8_res` (perturbseq) / `step7_res` (plain) — its `process.R` already knows to read the PCA step's object directly instead of the (skipped) bad-cluster-removal step's object. If the user later spots an obviously bad cluster in that single clustering pass, there's no scripted removal step for it — use the "if something doesn't fit the template" guidance at the bottom of this file rather than improvising one.
+Two independent conditions can each skip a pair of steps. Check both whenever they're relevant — a single-lane run that also turns out to have no bad cluster skips straight from `step5_PCA` to `step9_seed`.
+
+**Single-lane shortcut.** If the destination has only one lane/sample (`config.lanes` has exactly one entry), there's no batch effect to check — nothing to compare that one lane against. Skip `step6_batch_effect`/`step7_rm_badcl` (perturbseq) or `step5_batch_effect`/`step6_rm_badcl` (plain) as separate scaffolded steps entirely: after the PCA step is confirmed, go straight to scaffolding `step8_res` (perturbseq) / `step7_res` (plain) — its `process.R` already knows to read the PCA step's object directly instead of the (skipped) bad-cluster-removal step's object. If the user later spots an obviously bad cluster in that single clustering pass, there's no scripted removal step for it — use the "if something doesn't fit the template" guidance at the bottom of this file rather than improvising one.
+
+**No-bad-cluster shortcut.** After `step6_batch_effect`/`step5_batch_effect`'s checkpoint (looking across every swept resolution for a low-quality/outlier cluster), the user may report that nothing looked bad anywhere. When that happens:
+1. Set `bad_cluster_removal.no_bad_cluster: true` and leave `cluster_rm: null`.
+2. Set `bad_cluster_removal.resolution` to whichever swept resolution the user is comfortable committing to — there's no separate resolution-resweep to re-pick from, since nothing gets removed.
+3. Copy that same value into `final_clustering.final_resolution`.
+4. Skip scaffolding `step7_rm_badcl`/`step8_res` (perturbseq) or `step6_rm_badcl`/`step7_res` (plain) entirely — go straight to scaffolding `step9_seed`/`step8_seed`. Its `process.R` already knows to read `step6_batch_effect`'s/`step5_batch_effect`'s object directly instead of the (skipped) recluster step's object, since recomputing from scratch on the exact same cells would only reproduce what's already been computed.
+
+If the user is unsure, or only some resolutions look clean, don't guess — walk them through the normal path instead (fill in `cluster_rm`, scaffold `step7_rm_badcl`/`step6_rm_badcl` and `step8_res`/`step7_res` as usual).
 
 ### 6. Confirm the marker panel before the first dotplot
 
@@ -78,7 +88,7 @@ Use `scaffold_next_step(target_dir)` from `scripts/scaffold.R` to copy one step'
 
 ### Pipeline overview
 
-Shown as the 11-step perturbseq profile; see `references/pipeline-plain.md` for the 10-step plain-profile equivalent (each perturbseq step number maps to plain step number minus one, from step2 onward — plain has no `step1_load`). Rectangles are scaffolded steps; diamonds are the checkpoint decision the user makes before the next step gets scaffolded (steps with no diamond after them — step4_filter, step7_rm_badcl, step11_cell_type — are still hard stops, just with nothing new to decide). step2_assign's and step3_doublet's `plot.R` gets re-run after their checkpoint, so the saved figure reflects the confirmed value.
+Shown as the 11-step perturbseq profile; see `references/pipeline-plain.md` for the 10-step plain-profile equivalent (each perturbseq step number maps to plain step number minus one, from step2 onward — plain has no `step1_load`). Blue rectangles are scaffolded steps; amber diamonds are the checkpoint decision the user makes before the next step gets scaffolded (steps with no diamond after them — step4_filter, step7_rm_badcl, step11_cell_type — are still hard stops, just with nothing new to decide). step2_assign's and step3_doublet's `plot.R` gets re-run after their checkpoint, so the saved figure reflects the confirmed value. Two shortcuts skip steps entirely (section 5): a single-lane run skips straight from `step5_PCA` to `step8_res`, and a run where no cluster looks bad at `step6_batch_effect` skips straight to `step9_seed`.
 
 ```mermaid
 flowchart TD
@@ -95,15 +105,22 @@ flowchart TD
     D5b --> S8["step8_res"]
     SL -->|no| D5a{"Marker panel OK?"}
     D5a --> S6["step6_batch_effect"]
-    S6 --> D6{"Resolution + bad cluster?"}
-    D6 --> S7["step7_rm_badcl"]
+    S6 --> D6{"Bad cluster found?"}
+    D6 -->|yes| D6b{"Resolution + cluster to remove?"}
+    D6b --> S7["step7_rm_badcl"]
     S7 --> S8
+    D6 -->|no| S9["step9_seed"]
     S8 --> D7{"Final resolution?"}
-    D7 --> S9["step9_seed"]
+    D7 --> S9
     S9 --> D8{"Winning seed?"}
     D8 --> S10["step10_cluster_final"]
     S10 --> D9{"Cluster → cell type map?"}
     D9 --> S11["step11_cell_type"]
+
+    classDef stepNode fill:#cfe8ff,stroke:#1a5b8c,color:#0b2540,stroke-width:1px;
+    classDef decisionNode fill:#ffe1a3,stroke:#a66a00,color:#3a2400,stroke-width:1px;
+    class S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11 stepNode;
+    class D1,D2,D3,D4,D5a,D5b,D6,D6b,D7,D8,D9,SL decisionNode;
 ```
 
 ### Checkpoint table (perturbseq profile — see `references/pipeline-plain.md` for the 10-step plain-profile equivalent)
@@ -116,9 +133,9 @@ flowchart TD
 | step4_filter | outputs look reasonable | *(none)* | still a hard stop |
 | step5_PCA | fig1 — elbow plot | `clustering.n_dims` | how many PCs actually carry signal |
 | *(before step6_batch_effect)* | current `markers.*` panel in config.yaml | confirm or revise panel/grouping | **PRE-step checkpoint** — see section 6, not a post-run figure |
-| step6_batch_effect | UMAP/dotplot/violin/lane figs across resolutions | `bad_cluster_removal.resolution`, `bad_cluster_removal.cluster_rm` | picking the lowest resolution that cleanly isolates a bad/outlier cluster |
-| step7_rm_badcl | outputs look reasonable | *(none)* | still a hard stop |
-| step8_res | resolution-sweep figs | `final_clustering.final_resolution` | the resolution to commit to |
+| step6_batch_effect | UMAP/dotplot/violin/lane figs across resolutions | `bad_cluster_removal.resolution`, `bad_cluster_removal.cluster_rm` | picking the lowest resolution that cleanly isolates a bad/outlier cluster — if nothing looks bad at any resolution, use the no-bad-cluster shortcut (section 5) instead |
+| step7_rm_badcl | outputs look reasonable | *(none)* | still a hard stop — **skipped entirely** if the no-bad-cluster shortcut applies |
+| step8_res | resolution-sweep figs | `final_clustering.final_resolution` | the resolution to commit to — **skipped entirely** if the no-bad-cluster shortcut applies |
 | step9_seed | seed-sweep figs | `final_clustering.winning_seed` | which random seed gave the most stable/interpretable clustering |
 | step10_cluster_final | final cluster UMAP + marker dotplot | `cell_type.cluster_celltype_map` | cluster ID → cell-type label, one entry per cluster, exhaustive |
 | step11_cell_type | final cell-type figs | *(none)* | end of pipeline |
@@ -126,6 +143,8 @@ flowchart TD
 When a step's plot needs to be **regenerated** (step2, step3), don't just record the value and move on — re-run that step's `plot.R` (or hand the user the command to) with the confirmed value now in `config.yaml`, so the saved figure actually shows the decision that was made.
 
 If `config.lanes` has exactly one entry, skip step6_batch_effect and step7_rm_badcl per the single-lane shortcut above — go from step5_PCA straight to step8_res (and do the marker-panel confirmation from section 6 right before step8_res in that case, per its single-lane exception).
+
+If no bad cluster is found at step6_batch_effect, skip step7_rm_badcl and step8_res per the no-bad-cluster shortcut above (section 5) — go from step6_batch_effect straight to step9_seed, with `bad_cluster_removal.resolution` copied into `final_clustering.final_resolution`.
 
 ### 8. Keep a lab notebook
 

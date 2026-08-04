@@ -3,6 +3,10 @@ source(here::here("init.R"))
 
 # Filled in config.yaml after inspecting step6_batch_effect/figs — the lowest resolution
 # that clearly separates a low-quality/outlier cluster, and its cluster ID.
+# This step is only ever scaffolded when a bad cluster WAS found. If nothing
+# looked bad at any swept resolution, don't scaffold this step at all — set
+# config.bad_cluster_removal.no_bad_cluster: true instead and skip straight to
+# step9_seed (see SKILL.md section 5's no-bad-cluster shortcut).
 stopifnot(!is.null(config$bad_cluster_removal$resolution), !is.null(config$bad_cluster_removal$cluster_rm))
 RESOLUTION <- config$bad_cluster_removal$resolution
 CLUSTER_RM <- as.character(config$bad_cluster_removal$cluster_rm)

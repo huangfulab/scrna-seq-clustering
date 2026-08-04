@@ -34,18 +34,25 @@ flowchart TD
     D5b --> S8["step8_res"]
     SL -->|no| D5a{"Marker panel OK?"}
     D5a --> S6["step6_batch_effect"]
-    S6 --> D6{"Resolution + bad cluster?"}
-    D6 --> S7["step7_rm_badcl"]
+    S6 --> D6{"Bad cluster found?"}
+    D6 -->|yes| D6b{"Resolution + cluster to remove?"}
+    D6b --> S7["step7_rm_badcl"]
     S7 --> S8
+    D6 -->|no| S9["step9_seed"]
     S8 --> D7{"Final resolution?"}
-    D7 --> S9["step9_seed"]
+    D7 --> S9
     S9 --> D8{"Winning seed?"}
     D8 --> S10["step10_cluster_final"]
     S10 --> D9{"Cluster → cell type map?"}
     D9 --> S11["step11_cell_type"]
+
+    classDef stepNode fill:#cfe8ff,stroke:#1a5b8c,color:#0b2540,stroke-width:1px;
+    classDef decisionNode fill:#ffe1a3,stroke:#a66a00,color:#3a2400,stroke-width:1px;
+    class S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11 stepNode;
+    class D1,D2,D3,D4,D5a,D5b,D6,D6b,D7,D8,D9,SL decisionNode;
 ```
 
-Shown as the 11-step perturbseq profile. Rectangles are scaffolded steps; diamonds are the checkpoint decision made before the next step gets scaffolded. Full per-step spec for both profiles (what each step computes, what each checkpoint figure means): `references/pipeline-perturbseq.md` and `references/pipeline-plain.md`.
+Shown as the 11-step perturbseq profile. Blue rectangles are scaffolded steps; amber diamonds are the checkpoint decision made before the next step gets scaffolded. Two shortcuts skip steps entirely: a single-lane run skips straight from `step5_PCA` to `step8_res`, and a run where no cluster looks bad at `step6_batch_effect` skips straight to `step9_seed`. Full per-step spec for both profiles (what each step computes, what each checkpoint figure means, and both shortcuts in detail): `references/pipeline-perturbseq.md` and `references/pipeline-plain.md`.
 
 ## Installing
 

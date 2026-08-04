@@ -161,18 +161,25 @@ clustering:
 # bad_cluster_removal: one-time removal of a clearly bad/outlier cluster found
 # during step6_batch_effect (plain: step5_batch_effect), applied in
 # step7_rm_badcl (plain: step6_rm_badcl).
-# FILL IN AFTER CHECKPOINT — DO NOT GUESS. Both fields start null. After
-# step6_batch_effect/plot.R finishes, look through figs/fig1_umap/res*.png,
+# FILL IN AFTER CHECKPOINT — DO NOT GUESS. All three fields start null/false.
+# After step6_batch_effect/plot.R finishes, look through figs/fig1_umap/res*.png,
 # figs/fig2_dotplot/res*.png, figs/fig3_violin_qc/res*.png and
 # figs/fig4_lane_comp/res*.png for each resolution and decide: (a) which
 # resolution most clearly isolates a low-quality/technical cluster (e.g. very
 # low nCount/nFeature, or a cluster that is basically one lane), and (b) that
-# cluster's ID (as a string, e.g. "3") at that resolution. If no cluster looks
-# bad, it is valid to leave this step as a no-op — ask Claude how to skip it.
+# cluster's ID (as a string, e.g. "3") at that resolution.
+# If NO cluster looks bad at any swept resolution, set no_bad_cluster: true,
+# leave cluster_rm null, and copy `resolution` (below) into
+# final_clustering.final_resolution — step7_rm_badcl/step8_res (plain:
+# step6_rm_badcl/step7_res) are then skipped entirely rather than scaffolded
+# as no-ops, since there is nothing to remove and recomputing from scratch on
+# the same cells would just reproduce step6_batch_effect's/step5_batch_effect's
+# result. See SKILL.md section 5 for the full walkthrough.
 # -----------------------------------------------------------------------------
 bad_cluster_removal:
-  resolution: null       # FILL IN AFTER CHECKPOINT — e.g. 0.1
-  cluster_rm: null       # FILL IN AFTER CHECKPOINT — e.g. "3" (quote it, it's a cluster label, not a count)
+  resolution: null       # FILL IN AFTER CHECKPOINT — e.g. 0.1 (the resolution you inspected; also becomes final_clustering.final_resolution if no_bad_cluster is true)
+  cluster_rm: null       # FILL IN AFTER CHECKPOINT — e.g. "3" (quote it, it's a cluster label, not a count). Leave null if no_bad_cluster is true.
+  no_bad_cluster: false  # Set true if nothing looked bad at any swept resolution — skips step7_rm_badcl/step8_res (plain: step6_rm_badcl/step7_res) entirely.
 
 # -----------------------------------------------------------------------------
 # final_clustering: the resolution-sweep + seed-sweep that produces the
