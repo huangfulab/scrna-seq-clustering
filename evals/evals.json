@@ -1,0 +1,55 @@
+{
+  "skill_name": "scrna-seq-clustering-pipeline",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "scaffold-new-perturbseq-run",
+      "prompt": "I have a new Perturb-seq experiment (CRISPR overexpression screen) I need to cluster. It's 4 lanes: L1, L2, L3, L4. CellRanger h5 files are at /data/newstudy/h5_files/{lane}_filtered_feature_bc_matrix.h5. Negative-control guide CSV is at /data/newstudy/gRNA/NC.csv and my target-guide CSV is at /data/newstudy/gRNA/OEG.csv. I want the analysis to live at <target_dir>. My marker panel for this experiment (it's an immune cell mix) is: PTPRC, CD3E, CD3D, CD19, MS4A1, CD14, LYZ, NCAM1, KLRD1, ITGAM. Can you get me set up? My cluster account details: mail you@example.org, log dir /data/you/slurm_logs, conda env name pertseq_env, partition preemptable.",
+      "expected_output": "Claude picks the perturbseq profile, walks through the conda-env step, writes config.yaml with the user's values filled in, scaffolds ONLY step1_load, hands back the exact sbatch command, explains the UMI-threshold checkpoint in plain language, and stops there — does not scaffold step2 or beyond in the same turn.",
+      "files": [],
+      "assertions": [
+        "config.yaml exists with lanes == [L1, L2, L3, L4]",
+        "config.yaml's h5_pattern preserves the {lane} token",
+        "config.yaml's gRNA CSV paths and markers.panel match the user's given values, not the shipped example",
+        "config.yaml's slurm/conda fields match the user's given values",
+        "Only step1_load's folder exists on disk",
+        "No pipeline output (.qs2/figs/tables) exists -- nothing was actually executed",
+        "Response gives an exact sbatch command and does not claim to have run it",
+        "Response asks about/walks through the conda environment",
+        "Response explains the UMI-threshold figure in plain language"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "scaffold-plain-single-lane-run",
+      "prompt": "I have plain scRNA-seq data (no CRISPR guides, just a normal single-cell RNA-seq run) from one 10x lane of human liver tissue, lane name LIV1. The CellRanger h5 file is at /data/liver/h5_files/LIV1_filtered_feature_bc_matrix.h5. I'd like to run the clustering pipeline on it, output at <target_dir>. Marker genes for liver cell types: ALB, APOA1 (hepatocyte), KRT19, EPCAM (cholangiocyte), PECAM1, VWF (endothelial), PTPRC, CD68 (immune), COL1A1, ACTA2 (stellate/fibroblast). My cluster info: mail you@example.org, log dir /data/you/slurm_logs, conda env liver_env, partition preemptable.",
+      "expected_output": "Claude picks the plain profile (10 steps), notices there's only one lane and mentions the single-lane batch-effect-check shortcut will apply later in the pipeline, scaffolds only step1_load_qc, and stops with the QC-violin checkpoint explained in plain language.",
+      "files": [],
+      "assertions": [
+        "config.yaml exists with profile == plain and lanes == [LIV1]",
+        "config.yaml's markers.panel matches the user's given liver genes, not the shipped example",
+        "config.yaml's slurm/conda fields match the user's given values",
+        "Only step1_load_qc's folder exists on disk",
+        "No pipeline output (.qs2/figs/tables) exists -- nothing was actually executed",
+        "Response gives an exact sbatch command and does not claim to have run it",
+        "Response explicitly mentions the single-lane shortcut for later steps",
+        "Response explains the QC-violin figure in plain language"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "hard-stop-after-mechanical-step",
+      "prompt": "We've been scaffolding the Perturb-seq clustering pipeline step by step for my new dataset at <target_dir> (8 lanes: L1-L8). So far we've set UMI_THRESHOLD=5, QC cutoffs (min_ncount=1800, min_nfeat=900, max_pct_mt=12), and MOI cutoffs (min_moi=1, max_moi=20), and scaffolded through step4_filter. I just ran step4_filter's sbatch job and it finished — filter_summary.csv shows about 64% of cells retained per lane, which looks reasonable to me. What's next?",
+      "expected_output": "Claude scaffolds exactly ONE more step (step5_PCA) since step4_filter had no checkpoint value of its own (just needed confirmation, which was given) — it does not chain into step6 automatically, and the new stop is the elbow-plot/n_dims checkpoint.",
+      "files": [],
+      "assertions": [
+        "step5_PCA's folder exists on disk (exactly one new step added)",
+        "step6_batch_effect's folder does NOT exist -- no chaining past one step",
+        "config.yaml's previously-set qc.* values are unchanged, not overwritten or invented",
+        "Response gives an exact sbatch command for step5_PCA and does not claim to have run it",
+        "Response explains the elbow-plot/n_dims checkpoint in plain language",
+        "Response does not re-ask for values already given"
+      ]
+    }
+  ]
+}

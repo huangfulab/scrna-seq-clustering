@@ -1,0 +1,331 @@
+# =============================================================================
+# config.yaml — single source of truth for a scRNA-seq/Perturb-seq clustering run
+# =============================================================================
+#
+# This file is the ONLY place you edit tunable numbers/paths for the whole
+# 11-step (perturbseq) or 10-step (plain) pipeline. Every step's process.R /
+# plot.R reads its parameters from here via `config$...` (config is loaded
+# once, at the bottom of init.R, and is available in every script because
+# every script starts with `source(here::here("init.R"))`).
+#
+# This copy is the FULL "perturbseq" example (CRISPR/guide-capture Perturb-seq
+# run), pre-filled with the values from the original validated 20k-cell
+# cardiac-progenitor OEG run. Blocks/keys marked "PERTURBSEQ ONLY" below do not
+# apply if you scaffolded the "plain" profile (no guide-capture / no CRISPR
+# assay) — the plain step scripts never read those keys, so you can just leave
+# them as-is (harmless) or delete them for clarity. There is no separate
+# "plain" config template file; scaffold.R copies this same file for both
+# profiles.
+#
+# Fields marked "FILL IN AFTER CHECKPOINT — DO NOT GUESS" are placeholders.
+# They cannot be known before you've actually looked at the figures a prior
+# step produced. Leave them null/empty until Claude tells you which step's
+# checkpoint you're at and what to look for.
+
+# -----------------------------------------------------------------------------
+# profile: which templates/ subfolder this run was scaffolded from.
+# "perturbseq" = 11 steps, includes CRISPR guide assignment / MOI logic.
+# "plain"      = 10 steps, no CRISPR/guide-capture assay at all.
+# Purely informational for humans/Claude — no step script reads this key.
+# -----------------------------------------------------------------------------
+profile: perturbseq
+
+# -----------------------------------------------------------------------------
+# lanes: one entry per 10x lane / sample you are loading. Order matters only
+# in that it controls left-to-right panel order in the multi-lane figures.
+# Read by: init.R (becomes `lane_names`, used by every step).
+# -----------------------------------------------------------------------------
+lanes: ["R1", "R2", "A1", "A2", "A3", "B1", "B2", "B3"]
+
+# -----------------------------------------------------------------------------
+# n_cores: default number of CPU threads to use when a script is run
+# interactively (outside sbatch, where SLURM_CPUS_PER_TASK is unset). Under
+# sbatch, every step script overrides this automatically from
+# SLURM_CPUS_PER_TASK — this is only the interactive/local fallback.
+# Read by: init.R.
+# -----------------------------------------------------------------------------
+n_cores: 8
+
+# -----------------------------------------------------------------------------
+# paths: where to find raw input files, relative to this config.yaml's folder
+# (i.e. relative to the run's `here::here()` root — the folder with .here in it).
+# -----------------------------------------------------------------------------
+paths:
+  # Folder holding the 10x CellRanger .h5 files, one per lane.
+  h5_dir: "h5_files"
+  # Filename pattern for each lane's h5 file. "{lane}" is substituted with
+  # each entry from `lanes` above (e.g. lane "R1" -> "R1_sample_filtered_feature_bc_matrix.h5").
+  h5_pattern: "{lane}_sample_filtered_feature_bc_matrix.h5"
+  # --- PERTURBSEQ ONLY (guide-capture CSVs; plain profile never reads these) ---
+  # CSV of negative-control guide names, one column named "name".
+  nc_gRNA_csv: "../gRNA/NC_gRNA.csv"
+  # CSV of your target (OEG/on-target) guide names, one column named "name".
+  oeg_gRNA_csv: "../gRNA/OEG_gRNA.csv"
+
+# -----------------------------------------------------------------------------
+# qc: cell-level quality-control thresholds.
+# -----------------------------------------------------------------------------
+qc:
+  # --- PERTURBSEQ ONLY ---
+  # Minimum UMI count for a CRISPR guide to be considered "detected" in a
+  # cell. This is the step1_load -> step2_assign checkpoint value: run
+  # step1_load, inspect figs/fig2_guide_origin.png and fig3_gRNA_recovery.png,
+  # then set this. FILL IN AFTER CHECKPOINT — the value below (4) is only the
+  # original run's example; do not assume it transfers to a new dataset.
+  umi_threshold: 4
+  # Minimum RNA UMI count (nCount_RNA) for a cell to pass QC. Read at the
+  # step2_assign (perturbseq) / step1_load_qc (plain) checkpoint — inspect
+  # fig1_qc_violin.png first.
+  min_ncount: 2000
+  # Minimum number of distinct genes detected (nFeature_RNA) for a cell to
+  # pass QC. Same checkpoint as min_ncount.
+  min_nfeat: 1100
+  # Maximum % of a cell's UMIs coming from mitochondrial genes (^MT-) before
+  # it's considered dying/stressed and dropped. Same checkpoint as min_ncount.
+  max_pct_mt: 15
+  # --- PERTURBSEQ ONLY ---
+  # Minimum Multiplicity Of Infection (MOI = number of distinct guides
+  # detected per cell) to keep a cell. Checkpoint: step3_doublet's
+  # fig3_MOI_nCount.png.
+  min_moi: 1
+  # --- PERTURBSEQ ONLY ---
+  # Maximum MOI to keep a cell (cells with implausibly many guides are
+  # usually multiplets/doublets that scDblFinder missed). Same checkpoint.
+  max_moi: 24
+
+# -----------------------------------------------------------------------------
+# doublet: scDblFinder settings (step3_doublet / plain step2_doublet).
+# -----------------------------------------------------------------------------
+doublet:
+  # Cells with nCount_RNA at or below this are excluded from doublet calling
+  # entirely (too little signal for scDblFinder to work on reliably).
+  min_counts: 1000
+  # Number of PCA dimensions scDblFinder uses internally to build its kNN
+  # graph. This is INTERNAL to scDblFinder — unrelated to pca.npcs below.
+  dims: 30
+  # Number of highly-variable genes scDblFinder selects internally.
+  nfeatures: 2000
+
+# -----------------------------------------------------------------------------
+# pca: normalization / HVG / scaling / PCA settings (step5_PCA / plain step4_PCA).
+# -----------------------------------------------------------------------------
+pca:
+  # Number of highly variable genes (HVGs) selected by FindVariableFeatures().
+  # PCA and clustering only use these HVGs, not the whole transcriptome.
+  hvg_nfeatures: 3000
+  # Number of principal components to COMPUTE (RunPCA(npcs=...)). Keep this
+  # generous/fixed — it does not need to be re-derived at a checkpoint. What
+  # DOES need to be re-derived is how many of these PCs to actually USE
+  # downstream, which is a separate key: clustering.n_dims (see below). PCA
+  # always computes more PCs than you'll likely use, so you can inspect the
+  # elbow plot before committing to a smaller number.
+  npcs: 50
+  # Random seed for RunPCA(), for reproducibility.
+  seed: 42
+  # Metadata columns to regress out during ScaleData() (technical variation
+  # to remove before PCA). Must be a YAML list even with one entry.
+  vars_to_regress: ["pct.mt"]
+
+# -----------------------------------------------------------------------------
+# clustering: neighbor graph / UMAP / Louvain clustering settings.
+# Used by step6_batch_effect, step8_res, step9_seed (perturbseq) and their
+# plain-profile equivalents step5_batch_effect, step7_res, step8_seed.
+# -----------------------------------------------------------------------------
+clustering:
+  # How many of the PCs computed by pca.npcs to actually feed into
+  # FindNeighbors()/RunUMAP() (dims = 1:n_dims). THIS is the true checkpoint
+  # value: run step5_PCA (plain: step4_PCA), inspect figs/fig1_elbow.png for
+  # where variance explained flattens out, and set n_dims to that PC number.
+  # It is deliberately a separate key from pca.npcs (see note above) — FILL
+  # IN AFTER CHECKPOINT, the value below (30) is only the original run's
+  # example elbow point.
+  n_dims: 30
+  # Number of nearest neighbors used to build the SNN graph (FindNeighbors
+  # k.param). Higher = smoother/coarser clusters, lower = finer/noisier.
+  k_param: 20
+  # Louvain clustering resolutions to sweep in one FindClusters() call. Higher
+  # resolution = more, smaller clusters. Must be a YAML list of numbers —
+  # step scripts convert it with unlist() so it behaves as a plain numeric
+  # vector in R.
+  resolutions: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+  # Random seed for RunUMAP() (seed.use). Fixed across resolution/QC-only
+  # steps so UMAP layout doesn't jitter when only the clustering resolution
+  # changes; step9_seed intentionally VARIES this (see final_clustering.seeds)
+  # to test how sensitive the final cluster count/shape is to UMAP's
+  # stochastic layout.
+  umap_seed: 1998
+  # Clustering algorithm passed to FindClusters() (1 = original Louvain).
+  algorithm: 1
+
+# -----------------------------------------------------------------------------
+# bad_cluster_removal: one-time removal of a clearly bad/outlier cluster found
+# during step6_batch_effect (plain: step5_batch_effect), applied in
+# step7_rm_badcl (plain: step6_rm_badcl).
+# FILL IN AFTER CHECKPOINT — DO NOT GUESS. Both fields start null. After
+# step6_batch_effect/plot.R finishes, look through figs/fig1_umap/res*.png,
+# figs/fig2_dotplot/res*.png, figs/fig3_violin_qc/res*.png and
+# figs/fig4_lane_comp/res*.png for each resolution and decide: (a) which
+# resolution most clearly isolates a low-quality/technical cluster (e.g. very
+# low nCount/nFeature, or a cluster that is basically one lane), and (b) that
+# cluster's ID (as a string, e.g. "3") at that resolution. If no cluster looks
+# bad, it is valid to leave this step as a no-op — ask Claude how to skip it.
+# -----------------------------------------------------------------------------
+bad_cluster_removal:
+  resolution: null       # FILL IN AFTER CHECKPOINT — e.g. 0.1
+  cluster_rm: null       # FILL IN AFTER CHECKPOINT — e.g. "3" (quote it, it's a cluster label, not a count)
+
+# -----------------------------------------------------------------------------
+# final_clustering: the resolution-sweep + seed-sweep that produces the
+# final cluster assignments used in step10_cluster_final / step11_cell_type
+# (plain: step9_cluster_final / step10_cell_type).
+# -----------------------------------------------------------------------------
+final_clustering:
+  # FILL IN AFTER CHECKPOINT — DO NOT GUESS. After step8_res/plot.R
+  # (plain: step7_res), inspect figs/fig1_umap/res*.png + figs/fig2_dotplot/res*.png
+  # + tables/tbl1_cluster_summary/res*.csv for every resolution and pick the
+  # one whose clusters look both biologically distinct (dotplot) and stable/
+  # non-fragmented (UMAP). Starts null.
+  final_resolution: null
+  # Fixed list of random seeds swept in step9_seed (plain: step8_seed) to
+  # sanity-check that the final clustering isn't an artifact of one UMAP
+  # initialization. You normally do not need to change this list.
+  seeds: [1, 6, 19, 293, 666, 888, 1998, 2026]
+  # FILL IN AFTER CHECKPOINT — DO NOT GUESS. After step9_seed/plot.R
+  # (plain: step8_seed), inspect figs/umap/seed*.png + figs/dotplot/seed*.png
+  # for every seed in the `seeds` list above and pick the one whose UMAP/
+  # clusters look most representative/stable. Starts null. This value is
+  # ALSO used as the filename when you manually copy the winning seed's
+  # object forward, e.g.:
+  #   cp step9_seed/obj/seed<winning_seed>.qs2 step10_cluster_final/obj8_cluster_final.qs2
+  winning_seed: null
+
+# -----------------------------------------------------------------------------
+# markers: the marker-gene panel used for every dotplot in the pipeline
+# (step6_batch_effect, step8_res, step9_seed, step10_cluster_final,
+# step11_cell_type, and their plain-profile equivalents).
+# YOU MUST REPLACE THIS PANEL for a new tissue/cell-type system — the example
+# below is specific to the original run's cardiac-progenitor-organoid biology
+# and will not make sense for a different tissue.
+# -----------------------------------------------------------------------------
+markers:
+  # Flat list of gene symbols to show as dotplot rows, in display order.
+  panel: [
+    "MKI67", "TOP2A", "PCNA",
+    "PLVAP", "FLT1", "ETS1", "CDH5", "APLN",
+    "TAGLN", "ACTA2", "ANXA1", "NPPB", "SOX9", "LOXL2", "CALD1", "TMSB4X",
+    "TNNT2", "ACTC1",
+    "ISL1", "GATA4", "NKX2-5", "PDGFRA",
+    "SOX17", "HHEX", "FOXA2",
+    "VEGFA", "BNIP3", "SLC2A1"
+  ]
+  # gene -> marker-category label, used as the dotplot's facet strip text.
+  # Every gene in `panel` above must have an entry here.
+  cell_type_map:
+    MKI67: "Proliferating"
+    TOP2A: "Proliferating"
+    PCNA: "Proliferating"
+    PLVAP: "Endothelial"
+    FLT1: "Endothelial"
+    ETS1: "Endothelial"
+    CDH5: "Endothelial"
+    APLN: "Endothelial"
+    TAGLN: "Smooth muscle"
+    ACTA2: "Smooth muscle"
+    ANXA1: "Smooth muscle"
+    NPPB: "Smooth muscle"
+    SOX9: "Smooth muscle"
+    LOXL2: "Smooth muscle"
+    CALD1: "Smooth muscle"
+    TMSB4X: "Smooth muscle"
+    TNNT2: "Cardiomyocyte"
+    ACTC1: "Cardiomyocyte"
+    ISL1: "Cardiac progenitor"
+    GATA4: "Cardiac progenitor"
+    NKX2-5: "Cardiac progenitor"
+    PDGFRA: "Cardiac progenitor"
+    SOX17: "Foregut endoderm"
+    HHEX: "Foregut endoderm"
+    FOXA2: "Foregut endoderm"
+    VEGFA: "Hypoxia response"
+    BNIP3: "Hypoxia response"
+    SLC2A1: "Hypoxia response"
+  # Top-to-bottom facet-strip display order for the categories used in
+  # cell_type_map above (NOT the same thing as cell_type.cluster_ct_order
+  # below, which orders final CellType labels, not marker categories).
+  ct_levels: [
+    "Proliferating", "Endothelial", "Smooth muscle", "Cardiomyocyte",
+    "Cardiac progenitor", "Foregut endoderm", "Hypoxia response"
+  ]
+
+# -----------------------------------------------------------------------------
+# cell_type: the final cluster-ID -> biological-cell-type assignment, made in
+# step11_cell_type (plain: step10_cell_type) after all clustering is settled.
+# This is a DIFFERENT map from markers.cell_type_map above (that one maps
+# genes to marker categories for dotplot strips; this one maps final cluster
+# IDs to cell-type labels for the whole run) — do not conflate the two.
+# FILL IN AFTER CHECKPOINT — DO NOT GUESS. Both fields start empty. After
+# step10_cluster_final/plot.R (plain: step9_cluster_final) finishes, inspect
+# figs/fig1_umap_clusters.png (cluster IDs) and figs/fig5_dotplot_markers.png
+# (plain: fig4_dotplot_markers.png; marker expression per cluster) and assign
+# every cluster ID (as a string) to a cell-type label.
+# -----------------------------------------------------------------------------
+cell_type:
+  # cluster ID (string) -> cell type label. Must cover EVERY cluster level
+  # exhaustively (step11/step10_cell_type process.R will error if any
+  # cluster is missing). Example from the original run (do not reuse blindly):
+  #   cluster_celltype_map: {"0": "Cardiomyocyte", "1": "Cardiac progenitor",
+  #     "2": "Smooth muscle", "3": "Cardiac progenitor", "4": "Cardiac progenitor",
+  #     "5": "Smooth muscle", "6": "Foregut endoderm", "7": "Endothelial",
+  #     "8": "Cardiac progenitor"}
+  cluster_celltype_map: {}
+  # Display order for the distinct cell-type labels used above. Example from
+  # the original run: ["Cardiomyocyte", "Cardiac progenitor", "Smooth muscle",
+  # "Foregut endoderm", "Endothelial"]
+  cluster_ct_order: []
+
+# -----------------------------------------------------------------------------
+# conda: which conda environment every slurm.sh activates before running R.
+# -----------------------------------------------------------------------------
+conda:
+  env_name: "IRkernel"
+
+# -----------------------------------------------------------------------------
+# slurm: sbatch resource requests and paths used to fill in every slurm.sh's
+# __PLACEHOLDER__ tokens at scaffold time (scripts/scaffold.R does a literal
+# text substitution when it copies a step folder into your run directory —
+# sbatch scripts can't read YAML themselves, so this has to happen ahead of
+# time, not at submit time).
+# -----------------------------------------------------------------------------
+slurm:
+  mail_user: "you@example.org"
+  log_dir: "/absolute/path/to/slurm_logs"
+  partition: "preemptable"
+  # Absolute path to THIS run's directory (the folder containing this
+  # config.yaml, .here, init.R, and every stepN_xxx/ folder). Every slurm.sh
+  # does `cd` here before running Rscript. YOU MUST FILL THIS IN before
+  # scaffolding any step's slurm.sh.
+  project_root: "/absolute/path/to/the/new/run/directory"
+  resources:
+    # --- perturbseq profile step folders ---
+    step1_load:         {cpus: 8,  mem: "128G", time: "0:15:00"}
+    step2_assign:        {cpus: 8,  mem: "128G", time: "0:15:00"}
+    step3_doublet:       {cpus: 40, mem: "128G", time: "1:00:00"}
+    step4_filter:        {cpus: 8,  mem: "64G",  time: "0:15:00"}
+    step5_PCA:           {cpus: 8,  mem: "128G", time: "1:00:00"}
+    step6_batch_effect:  {cpus: 8,  mem: "64G",  time: "0:30:00"}
+    step7_rm_badcl:      {cpus: 8,  mem: "112G", time: "0:15:00"}
+    step8_res:           {cpus: 8,  mem: "112G", time: "1:15:00"}
+    step9_seed:          {cpus: 8,  mem: "160G", time: "0:45:00"}
+    # (step10_cluster_final/step11_cell_type run interactively, no slurm entry needed — same as original)
+    # --- plain profile step folders (each maps 1:1 onto its closest perturbseq
+    #     analog above; step1_load_qc merges original step1+step2 but does no
+    #     more I/O than step1_load alone, so it reuses that sizing) ---
+    step1_load_qc:       {cpus: 8,  mem: "128G", time: "0:15:00"}   # ~ step1_load
+    step2_doublet:       {cpus: 40, mem: "128G", time: "1:00:00"}   # ~ step3_doublet
+    step3_filter:        {cpus: 8,  mem: "64G",  time: "0:15:00"}   # ~ step4_filter
+    step4_PCA:           {cpus: 8,  mem: "128G", time: "1:00:00"}   # ~ step5_PCA
+    step5_batch_effect:  {cpus: 8,  mem: "64G",  time: "0:30:00"}   # ~ step6_batch_effect
+    step6_rm_badcl:      {cpus: 8,  mem: "112G", time: "0:15:00"}   # ~ step7_rm_badcl
+    step7_res:           {cpus: 8,  mem: "112G", time: "1:15:00"}   # ~ step8_res
+    step8_seed:          {cpus: 8,  mem: "160G", time: "0:45:00"}   # ~ step9_seed
+    # (step9_cluster_final/step10_cell_type run interactively, no slurm entry needed)

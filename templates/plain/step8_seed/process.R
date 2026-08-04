@@ -1,0 +1,55 @@
+# conda run -n <conda.env_name> Rscript step8_seed/scripts/process.R
+source(here::here("init.R"))
+n_cores <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK", unset = n_cores))
+
+SEEDS      <- unlist(config$final_clustering$seeds)
+N_DIMS     <- config$clustering$n_dims
+K_PARAM    <- config$clustering$k_param
+RESOLUTION <- config$final_clustering$final_resolution
+stopifnot(!is.null(RESOLUTION))
+
+# Load ----------
+cat("Loading obj7_cluster2...\n")
+obj <- qs_read(here("step7_res", "obj7_cluster2.qs2"), nthreads = n_cores)
+cat("Loaded:", ncol(obj), "cells\n")
+cat("Reductions:", paste(Reductions(obj), collapse = ", "), "\n")
+cat("Graphs:", paste(Graphs(obj), collapse = ", "), "\n")
+
+# Strip prior UMAP/neighbor/cluster products ----------
+cat("\nStripping prior umap reduction, RNA_nn/RNA_snn graphs, RNA_snn_res.*/seurat_clusters columns...\n")
+obj[["umap"]]   <- NULL
+obj[["RNA_nn"]] <- NULL
+obj[["RNA_snn"]] <- NULL
+res_cols <- grep("^RNA_snn_res\\.", colnames(obj@meta.data), value = TRUE)
+obj@meta.data[, c(res_cols, "seurat_clusters")] <- NULL
+cat("Kept reductions:", paste(Reductions(obj), collapse = ", "), "\n")
+
+# Seed sweep: FindNeighbors + RunUMAP + FindClusters per seed, save inside each worker ----------
+obj_dir <- here("step8_seed", "obj")
+dir.create(obj_dir, recursive = TRUE, showWarnings = FALSE)
+
+cat(glue("\nSweeping {length(SEEDS)} seeds (dims=1:{N_DIMS}, k={K_PARAM}, res={RESOLUTION})...\n"))
+plan("multicore", workers = n_cores)
+results <- future_lapply(SEEDS, function(s) {
+  tmp <- FindNeighbors(obj, reduction = "pca", dims = 1:N_DIMS,
+                       k.param = K_PARAM, verbose = FALSE)
+  tmp <- RunUMAP(tmp, reduction = "pca", dims = 1:N_DIMS,
+                 seed.use = s, umap.method = "uwot", verbose = FALSE)
+  tmp <- FindClusters(tmp, resolution = RESOLUTION,
+                      random.seed = s, algorithm = config$clustering$algorithm, verbose = FALSE)
+  Idents(tmp) <- tmp$seurat_clusters
+
+  out_path <- file.path(obj_dir, glue("seed{s}.qs2"))
+  qs_save(tmp, file = out_path, nthreads = 1)
+
+  list(seed = s, n_clusters = nlevels(Idents(tmp)), path = out_path)
+}, future.seed = FALSE)
+plan("sequential")
+
+# Report ----------
+walk(results, function(res) {
+  cat(glue("  seed={res$seed}: {res$n_clusters} clusters -> {res$path} ({round(file.size(res$path)/1e9, 2)} GB)\n"))
+})
+
+cat("\n=== STEP 8 COMPLETE ===\n")
+cat("Run step8_seed/plot.R to generate figures.\n")

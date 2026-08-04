@@ -1,0 +1,53 @@
+# =============================================================================
+# environment.yml — conda environment for the scRNA-seq clustering pipeline
+# =============================================================================
+#
+# This lists only the packages the pipeline's R scripts actually `library()`
+# in init.R and in individual step process.R/plot.R files — not a full dump
+# of any existing environment (an existing IRkernel-style env may have many
+# more packages installed for unrelated work; do not assume all of those are
+# needed here).
+#
+# Usage:
+#   conda env create -f environment.yml -n <env_name>
+#   conda activate <env_name>
+# `<env_name>` should match `conda.env_name` in config.yaml so that
+# scaffold.R's generated slurm.sh files activate the right environment.
+#
+# Two packages below (r-qs2, r-complexupset) are frequently NOT available on
+# conda-forge/bioconda under those exact names/versions — if `conda env
+# create` fails to solve with them included, install the R environment
+# first, then add them from inside R:
+#   install.packages("qs2")
+#   install.packages("ComplexUpset")   # or: remotes::install_github("krassowski/complex-upset")
+
+name: scrna-clustering
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - r-base=4.4
+  # ---- Core Seurat / data-wrangling stack (every step) ----
+  - r-seurat=5.5
+  - r-dplyr=1.2
+  - r-tidyr=1.3
+  - r-purrr=1.2
+  - r-readr=2.2
+  - r-here=1.0
+  - r-ggplot2=4.0
+  - r-rcolorbrewer=1.1
+  - r-scales=1.4
+  - r-future=1.70
+  - r-future.apply=1.20
+  - r-matrix=1.7
+  - r-glue=1.8
+  - r-patchwork=1.3
+  - r-yaml=2.3
+  # ---- step3_doublet / plain step2_doublet: scDblFinder ----
+  - bioconductor-scdblfinder=1.23
+  - bioconductor-biocparallel=1.40
+  # ---- fast serialization used for every obj*.qs2 checkpoint file ----
+  - r-qs2
+  # ---- step4_filter / plain step3_filter fig4 UpSet plot (the only UpSet package
+  #      actually used anywhere in the pipeline — library(ComplexUpset), not UpSetR) ----
+  - r-complexupset
