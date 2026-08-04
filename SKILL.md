@@ -78,22 +78,32 @@ Use `scaffold_next_step(target_dir)` from `scripts/scaffold.R` to copy one step'
 
 ### Pipeline overview
 
-Shown as the 11-step perturbseq profile; see `references/pipeline-plain.md` for the 10-step plain-profile equivalent (each perturbseq step number maps to plain step number minus one, from step2 onward — plain has no `step1_load`). The single-lane shortcut (section 5) skips the batch-effect/bad-cluster-removal pair in both profiles.
+Shown as the 11-step perturbseq profile; see `references/pipeline-plain.md` for the 10-step plain-profile equivalent (each perturbseq step number maps to plain step number minus one, from step2 onward — plain has no `step1_load`). Rectangles are scaffolded steps; diamonds are the checkpoint decision the user makes before the next step gets scaffolded (steps with no diamond after them — step4_filter, step7_rm_badcl, step11_cell_type — are still hard stops, just with nothing new to decide). step2_assign's and step3_doublet's `plot.R` gets re-run after their checkpoint, so the saved figure reflects the confirmed value.
 
 ```mermaid
 flowchart TD
-    S1["step1_load"] -->|"fig2: guide origin by UMI threshold"| S2["step2_assign"]
-    S2 -->|"fig1: QC violin<br/>(re-run after confirming)"| S3["step3_doublet"]
-    S3 -->|"fig3: MOI vs UMI count<br/>(re-run after confirming)"| S4["step4_filter"]
+    S1["step1_load"] --> D1{"UMI threshold?"}
+    D1 --> S2["step2_assign"]
+    S2 --> D2{"QC cutoffs?"}
+    D2 --> S3["step3_doublet"]
+    S3 --> D3{"MOI range?"}
+    D3 --> S4["step4_filter"]
     S4 --> S5["step5_PCA"]
-    S5 -->|"fig1: elbow plot"| SL{"single lane?"}
-    SL -->|yes| S8["step8_res"]
-    SL -->|"no — confirm marker panel first"| S6["step6_batch_effect"]
-    S6 -->|"UMAP + dotplot + violin + lane figs"| S7["step7_rm_badcl"]
+    S5 --> D4{"How many PCs?"}
+    D4 --> SL{"single lane?"}
+    SL -->|yes| D5b{"Marker panel OK?"}
+    D5b --> S8["step8_res"]
+    SL -->|no| D5a{"Marker panel OK?"}
+    D5a --> S6["step6_batch_effect"]
+    S6 --> D6{"Resolution + bad cluster?"}
+    D6 --> S7["step7_rm_badcl"]
     S7 --> S8
-    S8 -->|"resolution-sweep figs"| S9["step9_seed"]
-    S9 -->|"seed-sweep figs"| S10["step10_cluster_final"]
-    S10 -->|"final UMAP + marker dotplot"| S11["step11_cell_type"]
+    S8 --> D7{"Final resolution?"}
+    D7 --> S9["step9_seed"]
+    S9 --> D8{"Winning seed?"}
+    D8 --> S10["step10_cluster_final"]
+    S10 --> D9{"Cluster → cell type map?"}
+    D9 --> S11["step11_cell_type"]
 ```
 
 ### Checkpoint table (perturbseq profile — see `references/pipeline-plain.md` for the 10-step plain-profile equivalent)

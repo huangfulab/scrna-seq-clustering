@@ -21,21 +21,31 @@ Three rules the skill follows strictly (see `SKILL.md` for the full rationale):
 
 ```mermaid
 flowchart TD
-    S1["step1_load"] -->|"fig2: guide origin by UMI threshold"| S2["step2_assign"]
-    S2 -->|"fig1: QC violin<br/>(re-run after confirming)"| S3["step3_doublet"]
-    S3 -->|"fig3: MOI vs UMI count<br/>(re-run after confirming)"| S4["step4_filter"]
+    S1["step1_load"] --> D1{"UMI threshold?"}
+    D1 --> S2["step2_assign"]
+    S2 --> D2{"QC cutoffs?"}
+    D2 --> S3["step3_doublet"]
+    S3 --> D3{"MOI range?"}
+    D3 --> S4["step4_filter"]
     S4 --> S5["step5_PCA"]
-    S5 -->|"fig1: elbow plot"| SL{"single lane?"}
-    SL -->|yes| S8["step8_res"]
-    SL -->|"no — confirm marker panel first"| S6["step6_batch_effect"]
-    S6 -->|"UMAP + dotplot + violin + lane figs"| S7["step7_rm_badcl"]
+    S5 --> D4{"How many PCs?"}
+    D4 --> SL{"single lane?"}
+    SL -->|yes| D5b{"Marker panel OK?"}
+    D5b --> S8["step8_res"]
+    SL -->|no| D5a{"Marker panel OK?"}
+    D5a --> S6["step6_batch_effect"]
+    S6 --> D6{"Resolution + bad cluster?"}
+    D6 --> S7["step7_rm_badcl"]
     S7 --> S8
-    S8 -->|"resolution-sweep figs"| S9["step9_seed"]
-    S9 -->|"seed-sweep figs"| S10["step10_cluster_final"]
-    S10 -->|"final UMAP + marker dotplot"| S11["step11_cell_type"]
+    S8 --> D7{"Final resolution?"}
+    D7 --> S9["step9_seed"]
+    S9 --> D8{"Winning seed?"}
+    D8 --> S10["step10_cluster_final"]
+    S10 --> D9{"Cluster → cell type map?"}
+    D9 --> S11["step11_cell_type"]
 ```
 
-Shown as the 11-step perturbseq profile. Full per-step spec for both profiles (what each step computes, what each checkpoint figure means): `references/pipeline-perturbseq.md` and `references/pipeline-plain.md`.
+Shown as the 11-step perturbseq profile. Rectangles are scaffolded steps; diamonds are the checkpoint decision made before the next step gets scaffolded. Full per-step spec for both profiles (what each step computes, what each checkpoint figure means): `references/pipeline-perturbseq.md` and `references/pipeline-plain.md`.
 
 ## Installing
 
