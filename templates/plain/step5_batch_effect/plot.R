@@ -44,6 +44,17 @@ cat("Loading obj5_UMAP...\n")
 obj <- qs_read(here("step5_batch_effect", "obj5_UMAP.qs2"), nthreads = n_cores)
 cat("Loaded:", ncol(obj), "cells\n")
 
+# fig5: UMAP by cell-cycle phase (embedding is resolution-independent, so one plot suffices)
+p <- DimPlot(obj, reduction = "umap", group.by = "Phase",
+             pt.size = 1, raster = TRUE, shuffle = TRUE) +
+  labs(title = "UMAP — cell-cycle phase") +
+  scale_x_continuous(expand = expansion(mult = 0.05)) +
+  scale_y_continuous(expand = expansion(mult = 0.05)) +
+  coord_cartesian(clip = "on")
+ggsave(here("step5_batch_effect", "figs", "fig5_umap_phase.png"), p,
+       width = 8, height = 7, dpi = 300, bg = "white")
+cat("Saved: figs/fig5_umap_phase.png\n")
+
 # ---- Per-resolution loop ----------
 walk(RESOLUTIONS, function(res) {
   col        <- glue("RNA_snn_res.{res}")
@@ -135,6 +146,9 @@ cat(glue("{length(png_files)} PNGs total\n"))
 
 cat("\n---\n")
 cat("STOP: don't run step6 yet.\n")
+cat("figs/fig5_umap_phase.png colors the UMAP by cell-cycle phase (G1/S/G2M) — useful as a\n")
+cat("sanity check if pca.vars_to_regress includes S.Score/G2M.Score: phases should look mixed\n")
+cat("within each cluster rather than forming their own sub-blobs.\n")
 cat("This step swept", length(RESOLUTIONS), "clustering resolutions (", paste(RESOLUTIONS, collapse = ", "),
     ") and, for each one,\n")
 cat("saved a UMAP (figs/fig1_umap/resX.png), a marker dotplot (figs/fig2_dotplot/resX.png), a\n")

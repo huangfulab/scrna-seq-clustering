@@ -46,7 +46,10 @@ lane_names <- unlist(config$lanes)
 # ---- Marker gene panel (config.markers.*) ----------
 # Shared across step5/step7/step8/step9/step10 plot.R dotplots
 # (gene -> marker-category strip labels). Replace config.yaml's markers.*
-# block for a new tissue — see the heavily-commented config.yaml.template.
-markers       <- unlist(config$markers$panel)
+# block for a new tissue — see markers.csv in this run's root.
+# `markers` (dotplot row order) comes from cell_type_map's key order, not a
+# separate `panel` list — yaml::read_yaml() preserves YAML mapping key order,
+# so this is never out of sync with cell_type_map by construction.
 cell_type_map <- unlist(config$markers$cell_type_map)
+markers       <- names(cell_type_map)
 ct_levels     <- unlist(config$markers$ct_levels)

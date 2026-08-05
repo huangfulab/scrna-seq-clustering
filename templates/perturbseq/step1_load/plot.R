@@ -58,6 +58,8 @@ lane_data <- setNames(
   lane_names
 )
 
+lane_grid <- lane_grid_dims(length(lane_names))
+
 # fig1: UMI distribution ----------
 cat("[fig1] UMI distribution...\n")
 p_list <- map(lane_names, function(l) {
@@ -67,9 +69,9 @@ p_list <- map(lane_names, function(l) {
     scale_y_log10(labels = scales::comma) +
     labs(title = l, x = "UMI per guide per cell", y = "Frequency")
 })
-p <- wrap_plots(p_list, nrow = 2, axis_titles = "collect") +
+p <- wrap_plots(p_list, nrow = lane_grid$nrow, axis_titles = "collect") +
   plot_annotation(title = "UMI distribution per lane (zoom range: 1-10)")
-ggsave(file.path(figs_dir, "fig1_UMI_distribution.png"), p, width = 20, height = 8, dpi = 300, bg = "white")
+ggsave(file.path(figs_dir, "fig1_UMI_distribution.png"), p, width = lane_grid$width, height = lane_grid$height, dpi = 300, bg = "white")
 cat("Saved: figs/fig1_UMI_distribution.png\n")
 
 # fig2: Guide origin by threshold ----------
@@ -86,11 +88,11 @@ p_list <- map(lane_names, function(l) {
     scale_y_continuous(labels = scales::percent) +
     labs(title = l, x = "UMI threshold", y = "Proportion")
 })
-p <- wrap_plots(p_list, nrow = 2, axis_titles = "collect") +
+p <- wrap_plots(p_list, nrow = lane_grid$nrow, axis_titles = "collect") +
   plot_layout(guides = "collect") +
   plot_annotation(title = "Guide origin by UMI threshold") &
   theme(legend.position = "bottom")
-ggsave(file.path(figs_dir, "fig2_guide_origin.png"), p, width = 20, height = 8, dpi = 300, bg = "white")
+ggsave(file.path(figs_dir, "fig2_guide_origin.png"), p, width = lane_grid$width, height = lane_grid$height, dpi = 300, bg = "white")
 cat("Saved: figs/fig2_guide_origin.png\n")
 
 # fig3: gRNA recovery ----------
@@ -115,11 +117,11 @@ p_list <- map(lane_names, function(l) {
     ) +
     labs(title = l, x = "UMI threshold", y = "% guides unassigned")
 })
-p <- wrap_plots(p_list, nrow = 2, axis_titles = "collect") +
+p <- wrap_plots(p_list, nrow = lane_grid$nrow, axis_titles = "collect") +
   plot_layout(guides = "collect") +
   plot_annotation(title = "gRNA recovery by UMI threshold") &
   theme(legend.position = "bottom")
-ggsave(file.path(figs_dir, "fig3_gRNA_recovery.png"), p, width = 20, height = 8, dpi = 300, bg = "white")
+ggsave(file.path(figs_dir, "fig3_gRNA_recovery.png"), p, width = lane_grid$width, height = lane_grid$height, dpi = 300, bg = "white")
 cat("Saved: figs/fig3_gRNA_recovery.png\n")
 
 # tbl1: guide origin summary ----------

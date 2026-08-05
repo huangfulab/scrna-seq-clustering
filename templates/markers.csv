@@ -1,0 +1,40 @@
+gene,cell_type
+MKI67,Proliferation
+TOP2A,Proliferation
+PCNA,Proliferation
+PLVAP,Endothelial
+FLT1,Endothelial
+TAGLN,Smooth muscle
+ACTA2,Smooth muscle
+ANXA1,Smooth muscle
+NPPB,Smooth muscle
+SOX9,Smooth muscle
+LOXL2,Smooth muscle
+CALD1,Smooth muscle
+TMSB4X,Smooth muscle
+TNNT2,Cardiomyocyte
+ACTC1,Cardiomyocyte
+ISL1,Cardiac progenitor
+GATA4,Cardiac progenitor
+NKX2-5,Cardiac progenitor
+PDGFRA,Cardiac progenitor
+SOX17,Definitive endoderm
+CXCR4,Definitive endoderm
+HNF1B,Primitive gut tube
+ONECUT1,Pancreatic progenitor
+HHEX,Pancreatic progenitor
+PDX1,Pancreatic progenitor
+EPCAM,Epithelial
+CDH1,Epithelial
+GRHL2,Epithelial
+AFP,Liver
+HNF4A,Liver
+APOA1,Liver
+HAND1,Mesoderm
+MSX1,Mesoderm
+LEF1,Mesenchymal
+COL3A1,Mesenchymal
+COL1A1,Mesenchymal
+VEGFA,Hypoxia response
+BNIP3,Hypoxia response
+SLC2A1,Hypoxia response

@@ -44,6 +44,8 @@ plot_meta <- all_meta %>%
     MOI_plot = pmin(MOI, MOI_DISPLAY_CAP)
   )
 
+lane_grid <- lane_grid_dims(length(lane_names))
+
 # fig1: MOI vs doublet count ----------
 p_list <- map(lane_names, function(l) {
   df <- filter(plot_meta, lane == l)
@@ -58,12 +60,12 @@ p_list <- map(lane_names, function(l) {
     labs(title = l, x = "MOI", y = "N cells")
 })
 
-p <- wrap_plots(p_list, nrow = 2, axis_titles = "collect") +
+p <- wrap_plots(p_list, nrow = lane_grid$nrow, axis_titles = "collect") +
   plot_layout(guides = "collect") +
   plot_annotation(title = "Doublet count by MOI per lane") &
   theme(legend.position = "bottom")
 
-ggsave(file.path(figs_dir, "fig1_MOI_doublet_count.png"), p, width = 20, height = 8, dpi = 300, bg = "white")
+ggsave(file.path(figs_dir, "fig1_MOI_doublet_count.png"), p, width = lane_grid$width, height = lane_grid$height, dpi = 300, bg = "white")
 cat("Saved: figs/fig1_MOI_doublet_count.png\n")
 
 # fig2: MOI vs doublet fraction ----------
@@ -84,11 +86,11 @@ p_list <- map(lane_names, function(l) {
     labs(title = l, x = "MOI", y = "Doublet fraction")
 })
 
-p <- wrap_plots(p_list, nrow = 2, axis_titles = "collect") +
+p <- wrap_plots(p_list, nrow = lane_grid$nrow, axis_titles = "collect") +
   plot_layout(guides = "collect") +
   plot_annotation(title = "Doublet fraction by MOI per lane")
 
-ggsave(file.path(figs_dir, "fig2_MOI_doublet_percent.png"), p, width = 20, height = 8, dpi = 300, bg = "white")
+ggsave(file.path(figs_dir, "fig2_MOI_doublet_percent.png"), p, width = lane_grid$width, height = lane_grid$height, dpi = 300, bg = "white")
 cat("Saved: figs/fig2_MOI_doublet_percent.png\n")
 
 # fig3: MOI vs nCount_RNA (all vs singlets) ----------
@@ -130,12 +132,12 @@ p_list <- map(lane_names, function(l) {
     labs(title = l, x = "MOI", y = "nCount_RNA")
 })
 
-p <- wrap_plots(p_list, nrow = 2, axis_titles = "collect") +
+p <- wrap_plots(p_list, nrow = lane_grid$nrow, axis_titles = "collect") +
   plot_layout(guides = "collect") +
   plot_annotation(title = "MOI vs nCount per lane") &
   theme(legend.position = "bottom")
 
-ggsave(file.path(figs_dir, "fig3_MOI_nCount.png"), p, width = 20, height = 8, dpi = 300, bg = "white")
+ggsave(file.path(figs_dir, "fig3_MOI_nCount.png"), p, width = lane_grid$width, height = lane_grid$height, dpi = 300, bg = "white")
 cat("Saved: figs/fig3_MOI_nCount.png\n")
 
 cat("\n=== STEP 3 PLOT.R COMPLETE ===\n")

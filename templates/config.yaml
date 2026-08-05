@@ -1,0 +1,116 @@
+# config.yaml — read by Claude Code per this skill's scaffolding workflow, not
+# meant for the user to read directly. Full key-by-key schema: references/conventions.md.
+profile: perturbseq
+
+lanes: []
+
+n_cores: 1
+
+paths:
+  h5_dir: "h5_files"
+  h5_pattern: "{lane}_sample_filtered_feature_bc_matrix.h5"
+  nc_gRNA_csv: "gRNA/NC_gRNA.csv"
+  oeg_gRNA_csv: "gRNA/target_gRNA.csv"
+
+qc:
+  umi_threshold: 4
+  min_ncount: 2000
+  min_nfeat: 1100
+  max_pct_mt: 15
+  min_moi: 1
+  max_moi: 24
+
+doublet:
+  min_counts: 1000
+  dims: 30
+  nfeatures: 2000
+
+pca:
+  hvg_nfeatures: 3000
+  npcs: 50
+  seed: 1998
+  vars_to_regress: ["pct.mt"]
+
+clustering:
+  n_dims: 30
+  k_param: 20
+  resolutions: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+  umap_seed: 1998
+  algorithm: 1
+
+bad_cluster_removal:
+  resolution: null
+  cluster_rm: null
+  no_bad_cluster: false
+
+final_clustering:
+  final_resolution: null
+  seeds: [1, 6, 19, 293, 666, 888, 1998, 2026]
+  winning_seed: null
+
+markers:
+  cell_type_map:
+    MKI67: "Proliferating"
+    TOP2A: "Proliferating"
+    PCNA: "Proliferating"
+    PLVAP: "Endothelial"
+    FLT1: "Endothelial"
+    ETS1: "Endothelial"
+    CDH5: "Endothelial"
+    APLN: "Endothelial"
+    TAGLN: "Smooth muscle"
+    ACTA2: "Smooth muscle"
+    ANXA1: "Smooth muscle"
+    NPPB: "Smooth muscle"
+    SOX9: "Smooth muscle"
+    LOXL2: "Smooth muscle"
+    CALD1: "Smooth muscle"
+    TMSB4X: "Smooth muscle"
+    TNNT2: "Cardiomyocyte"
+    ACTC1: "Cardiomyocyte"
+    ISL1: "Cardiac progenitor"
+    GATA4: "Cardiac progenitor"
+    NKX2-5: "Cardiac progenitor"
+    PDGFRA: "Cardiac progenitor"
+    SOX17: "Foregut endoderm"
+    HHEX: "Foregut endoderm"
+    FOXA2: "Foregut endoderm"
+    VEGFA: "Hypoxia response"
+    BNIP3: "Hypoxia response"
+    SLC2A1: "Hypoxia response"
+  ct_levels: [
+    "Proliferating", "Endothelial", "Smooth muscle", "Cardiomyocyte",
+    "Cardiac progenitor", "Foregut endoderm", "Hypoxia response"
+  ]
+
+cell_type:
+  cluster_celltype_map: {}
+  cluster_ct_order: []
+
+conda:
+  env_name: "scrna-clustering"
+
+slurm:
+  enabled: true
+  mail_user: "you@example.org"
+  log_dir: "/absolute/path/to/slurm_logs"
+  partition: "preemptable"
+  project_root: "/absolute/path/to/the/new/run/directory"
+  resources:
+    step1_load:         {cpus: 8,  mem: "128G", time: "0:15:00"}
+    step2_assign:        {cpus: 8,  mem: "128G", time: "0:15:00"}
+    step3_doublet:       {cpus: 40, mem: "128G", time: "1:00:00"}
+    step4_filter:        {cpus: 8,  mem: "64G",  time: "0:15:00"}
+    step5_PCA:           {cpus: 8,  mem: "128G", time: "1:00:00"}
+    step6_batch_effect:  {cpus: 8,  mem: "64G",  time: "0:30:00"}
+    step7_rm_badcl:      {cpus: 8,  mem: "112G", time: "0:15:00"}
+    step8_res:           {cpus: 8,  mem: "112G", time: "1:15:00"}
+    step9_seed:          {cpus: 8,  mem: "160G", time: "0:45:00"}
+    step1_load_qc:       {cpus: 8,  mem: "128G", time: "0:15:00"}
+    step2_doublet:       {cpus: 40, mem: "128G", time: "1:00:00"}
+    step3_filter:        {cpus: 8,  mem: "64G",  time: "0:15:00"}
+    step4_PCA:           {cpus: 8,  mem: "128G", time: "1:00:00"}
+    step5_batch_effect:  {cpus: 8,  mem: "64G",  time: "0:30:00"}
+    step6_rm_badcl:      {cpus: 8,  mem: "112G", time: "0:15:00"}
+    step7_res:           {cpus: 8,  mem: "112G", time: "1:15:00"}
+    step8_seed:          {cpus: 8,  mem: "160G", time: "0:45:00"}

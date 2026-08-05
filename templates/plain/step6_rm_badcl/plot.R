@@ -47,7 +47,16 @@ p <- wrap_plots(
   make_violin(qc_meta, "pct.rb",       "% ribosomal genes"),
   nrow = 2, axis_titles = "collect"
 ) + plot_annotation(title = glue("QC metrics per lane (post cluster-{CLUSTER_RM} removal)"))
-ggsave(file.path(figs_dir, "fig1_qc_removal.png"), p, width = 14, height = 8, dpi = 300, bg = "white")
+# Fixed 2x2 metric grid — lanes sit on the x-axis WITHIN each panel, not as
+# separate panels. Width = ncol panels * (fixed per-panel margin for axis/
+# labels + a per-lane slot width * n lanes) — the frame content scales
+# purely proportionally with lane count; only the margin term is fixed.
+# Reproduces the original validated run's width=14 exactly at n=8 lanes.
+qc_violin_margin_per_panel <- 1
+qc_violin_width_per_lane   <- 0.75
+qc_violin_ncol             <- 2
+qc_violin_width <- qc_violin_ncol * (qc_violin_margin_per_panel + qc_violin_width_per_lane * length(lane_names))
+ggsave(file.path(figs_dir, "fig1_qc_removal.png"), p, width = qc_violin_width, height = 8, dpi = 300, bg = "white")
 cat("Saved: figs/fig1_qc_removal.png\n")
 
 cat("\n=== STEP 6_RM_BADCL PLOT.R COMPLETE ===\n")

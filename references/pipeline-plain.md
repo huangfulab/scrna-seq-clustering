@@ -19,7 +19,7 @@ Same underlying pipeline as `references/pipeline-perturbseq.md`, with every guid
 
 Reads each lane's CellRanger `.h5` (Gene Expression only — no CRISPR Guide Capture assay to load), creates a Seurat object per lane, computes `pct.mt` (% mitochondrial reads — a proxy for cell stress/death) and `pct.rb` (% ribosomal reads). There's no UMI-threshold sweep in this profile, since there's no guide capture to threshold.
 
-**Checkpoint (fig1 — QC violin, re-run after confirming):** UMI count, gene count, %mt violin plots per lane, with dashed reference lines at the current `config.qc.*` guesses. Explain: cells to the left of the UMI/gene-count line are probably empty droplets or fragments, not real cells; cells above the %mt line are probably dying/dead. Ask the user to eyeball whether the lines look reasonable, or move them. → `config.qc.min_ncount`, `config.qc.min_nfeat`, `config.qc.max_pct_mt`. **Once confirmed, re-run plot.R so fig1 reflects the real decision before scaffolding step2.**
+**Checkpoint (fig1 — QC violin, re-run after confirming):** UMI count, gene count, %mt violin plots per lane, with dashed reference lines at the current `config.qc.*` guesses. Explain: cells to the left of the UMI/gene-count line are probably empty droplets or fragments, not real cells; cells above the %mt line are probably dying/dead. Ask the user to eyeball whether the lines look reasonable, or move them. → `config.qc.min_ncount`, `config.qc.min_nfeat`, `config.qc.max_pct_mt`. **Once confirmed, re-run plot.R so fig1 reflects the real decision, then show the user the regenerated fig1 and get explicit confirmation they're satisfied with it — not just the re-run itself — before scaffolding step2.**
 
 ## step2_doublet — flag doublets
 
@@ -41,7 +41,7 @@ If `config.lanes` has exactly one entry, there's no second lane to compare again
 
 ## step5_batch_effect — cluster across a resolution sweep, check for batch effects
 
-**Before scaffolding this step**, confirm the marker panel with the user — this is the first step whose `plot.R` produces a dotplot (`fig2_dotplot`) from `config.markers.panel`/`cell_type_map`/`ct_levels`. Show them the current panel and category grouping and get explicit sign-off (or changes) before proceeding; see `SKILL.md` section 6 for why this is a dedicated checkpoint rather than folded into the general config interview.
+**Before scaffolding this step**, confirm the marker panel with the user — this is the first step whose `plot.R` produces a dotplot (`fig2_dotplot`) from `config.markers.cell_type_map`/`ct_levels`. Show them the current panel and category grouping and get explicit sign-off (or changes) before proceeding; see `SKILL.md` section 6 for why this is a dedicated checkpoint rather than folded into the general config interview.
 
 `FindNeighbors` → `RunUMAP` → `FindClusters` at 6 resolutions using the confirmed `n_dims`. Produces, per resolution: a UMAP colored by cluster, a marker-gene dotplot, QC violins per cluster, and a lane-composition bar chart.
 

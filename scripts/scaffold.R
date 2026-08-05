@@ -16,7 +16,7 @@
 #   source("scripts/scaffold.R")
 #
 #   # 1) One-time initial scaffold: creates target_dir, then copies .here,
-#   #    CLAUDE.md, init.R, and config.yaml (from config.yaml.template, with
+#   #    CLAUDE.md, init.R, and config.yaml (from templates/config.yaml, with
 #   #    its `profile:` field corrected to match the argument below). Copies
 #   #    NO step folder yet — see why below.
 #   scaffold_init(profile = "perturbseq", target_dir = "/abs/path/to/new/run")
@@ -113,7 +113,7 @@ glue <- function(..., .envir = parent.frame()) glue::glue(..., .trim = FALSE, .e
   warning(
     "Could not auto-detect the skill root directory (templates/ location). ",
     "Falling back to getwd(). If templates/ is not found from there, set ",
-    "Sys.setenv(SCRNA_SKILL_ROOT = \"/path/to/scrna-seq-clustering-pipeline\") ",
+    "Sys.setenv(SCRNA_SKILL_ROOT = \"/path/to/scrna-seq-clustering\") ",
     "before sourcing this file."
   )
   normalizePath(getwd(), mustWork = TRUE)
@@ -228,8 +228,14 @@ TEMPLATES_DIR <- file.path(SKILL_ROOT, "templates")
         stop(glue(
           "{target_dir}/config.yaml not found — cannot substitute slurm.sh ",
           "placeholders. Run scaffold_init() first (it creates config.yaml from ",
-          "config.yaml.template)."
+          "templates/config.yaml)."
         ))
+      }
+      slurm_enabled <- isTRUE(config$slurm$enabled %||% TRUE)
+      if (!slurm_enabled) {
+        cat(glue("  [skip] {step_folder_name}/scripts/slurm.sh — config.slurm.enabled is false, ",
+                  "run process.R/plot.R interactively instead\n"))
+        next
       }
       raw_text <- paste(readLines(src_path, warn = FALSE), collapse = "\n")
       sub_text <- .substitute_slurm_placeholders(raw_text, config, step_folder_name)
@@ -269,99 +275,6 @@ TEMPLATES_DIR <- file.path(SKILL_ROOT, "templates")
   cat("scaffold_next_step() for the following step.\n")
 }
 
-.claude_md_template <- function(profile) {
-  bullets <- c(
-    "Every tunable number/path for this pipeline lives in `config.yaml`, not hardcoded in any",
-    "step script. Do not hand-edit constants inside `stepN_xxx/scripts/*.R` files — edit",
-    "`config.yaml` instead and re-run. See `config.yaml`'s own comments for what each key",
-    "controls and which step reads it."
-  )
-  init_bullets <- c(
-    "- Packages, plotting theme, palette (`pal <- brewer.pal(9, \"Set1\")`)",
-    "- `config` — the parsed config.yaml (`config <- yaml::read_yaml(here(\"config.yaml\"))`)",
-    "- `n_cores`, `lane_names` (from config.yaml)",
-    "- `markers`, `cell_type_map`, `ct_levels` (from config.yaml's `markers.*` block)"
-  )
-  if (identical(profile, "perturbseq")) {
-    init_bullets <- c(init_bullets,
-      "- `nc_set`, `oeg_set`, `oeg_gene_map` (perturbseq only — guide-capture CSVs)")
-  }
-  seurat_bullets <- c(
-    "- **Never call `JoinLayers()`** unless you have a specific reason to and understand why —",
-    "  the original validated pipeline never needed it.",
-    "- **Never copy clusters via `obj$seurat_clusters <- x` expecting `Idents()` to update** —",
-    "  `$<-` does NOT update `Idents()` in Seurat v5. Always call `Idents(obj) <- x` explicitly",
-    "  if downstream code (e.g. `DimPlot`) relies on `Idents()`."
-  )
-  if (identical(profile, "perturbseq")) {
-    seurat_bullets <- c(seurat_bullets,
-      "- **RNA assay rownames are gene symbols**, not Ensembl IDs — match genes on symbol,",
-      "  not on any `*_id` column in your guide CSVs.")
-  }
-  c(
-    "# CLAUDE.md",
-    "",
-    "This file provides guidance to Claude Code (claude.ai/code) when working with code in this",
-    "repository.",
-    "",
-    glue("This run was scaffolded by the scrna-seq-clustering-pipeline skill, profile: `{profile}`."),
-    "",
-    "## Running scripts",
-    "",
-    "```bash",
-    "conda activate <config.yaml conda.env_name>",
-    "cd <this directory>",
-    "Rscript stepN_xxx/scripts/process.R   # data processing (a few steps have no process.R)",
-    "Rscript stepN_xxx/scripts/plot.R      # figures & tables",
-    "```",
-    "",
-    "Or via SLURM, where a step has a `slurm.sh`:",
-    "```bash",
-    "sbatch stepN_xxx/scripts/slurm.sh",
-    "```",
-    "",
-    "## config.yaml — single source of truth",
-    "",
-    bullets,
-    "",
-    "## init.R — what it provides",
-    "",
-    "`source(here::here(\"init.R\"))` at the top of every script. Do not repeat any of the",
-    "following in a step script:",
-    "",
-    init_bullets,
-    "",
-    "## Pipeline design — one step at a time",
-    "",
-    "This run is scaffolded ONE step folder at a time, not all at once (via this skill's",
-    "`scripts/scaffold.R`). Most steps end their `plot.R` with a `STOP:` message asking you to",
-    "inspect a figure and report a value back before the next step's `config.yaml` fields are",
-    "filled in and its folder is scaffolded. Do not skip ahead or hand-write a later step's",
-    "scripts yourself — regenerate them from the templates once the checkpoint is confirmed.",
-    "",
-    "## Seurat pipeline constraints",
-    "",
-    seurat_bullets,
-    "",
-    "## Plotting",
-    "",
-    "- Use Seurat plotting functions first (`VlnPlot`, `FeaturePlot`, `DimPlot`, etc.) with the",
-    "  Seurat default palette.",
-    "- Fall back to ggplot2 + `pal` only when Seurat plotting is not feasible.",
-    "- Always pass `bg = \"white\"` to every `ggsave()` call.",
-    "",
-    "## plot.R conventions",
-    "",
-    "Each step's `stepN_xxx/scripts/plot.R` is the sole entry point for figures and tables.",
-    "Do not duplicate any figure or table output in `process.R` if `plot.R` already produces it.",
-    "",
-    "**Output structure**:",
-    "- `stepN_xxx/figs/figN_<name>.png` — PNG figures",
-    "- `stepN_xxx/tables/tblN_<name>.csv` — CSV tables",
-    ""
-  )
-}
-
 # =============================================================================
 # scaffold_init(): one-time initial scaffold of a brand-new run directory.
 # Deliberately does NOT copy any step folder — see the file header comment
@@ -387,10 +300,10 @@ scaffold_init <- function(profile = c("perturbseq", "plain"), target_dir) {
     cat("  [skip] .here already exists\n")
   }
 
-  # CLAUDE.md ----------
+  # CLAUDE.md ---------- copied from templates/<profile>/CLAUDE.md, same as init.R below.
   claude_md_path <- file.path(target_dir, "CLAUDE.md")
   if (!file.exists(claude_md_path)) {
-    writeLines(.claude_md_template(profile), claude_md_path)
+    file.copy(file.path(TEMPLATES_DIR, profile, "CLAUDE.md"), claude_md_path)
     cat("  [ok]   CLAUDE.md\n")
   } else {
     cat("  [skip] CLAUDE.md already exists — not overwriting\n")
@@ -405,20 +318,19 @@ scaffold_init <- function(profile = c("perturbseq", "plain"), target_dir) {
     cat("  [skip] init.R already exists — not overwriting\n")
   }
 
-  # config.yaml (from config.yaml.template) ----------
-  # There is only one config.yaml.template, shared by both profiles (its own
-  # comments explain why), and it ships with `profile: perturbseq` literally
-  # in the text. Fix that line at copy time so a "plain" scaffold doesn't
-  # silently end up with the wrong profile recorded — scaffold_next_step()
-  # reads this exact field to decide which templates/<profile>/ folder to
-  # pull the next step from, so getting it wrong would copy the wrong
-  # pipeline's steps. Done as a targeted line substitution, not a full
-  # yaml::read_yaml()/write_yaml() round-trip, so config.yaml.template's
-  # extensive `#` comments (the main documentation a user reads) survive
-  # intact — write_yaml() would silently drop every comment.
+  # config.yaml (from templates/config.yaml) ----------
+  # There is only one templates/config.yaml, shared by both profiles, and it
+  # ships with `profile: perturbseq` literally in the text. Fix that line at
+  # copy time so a "plain" scaffold doesn't silently end up with the wrong
+  # profile recorded — scaffold_next_step() reads this exact field to decide
+  # which templates/<profile>/ folder to pull the next step from, so getting
+  # it wrong would copy the wrong pipeline's steps. Done as a targeted line
+  # substitution rather than a yaml::read_yaml()/write_yaml() round-trip
+  # mainly to keep the diff minimal and avoid write_yaml()'s own formatting
+  # quirks (config.yaml itself has no comments to preserve — see conventions.md).
   config_dest <- file.path(target_dir, "config.yaml")
   if (!file.exists(config_dest)) {
-    template_lines <- readLines(file.path(TEMPLATES_DIR, "config.yaml.template"), warn = FALSE)
+    template_lines <- readLines(file.path(TEMPLATES_DIR, "config.yaml"), warn = FALSE)
     template_lines <- sub("^profile:\\s*perturbseq\\s*$", glue("profile: {profile}"), template_lines)
     writeLines(template_lines, config_dest)
     cat(glue("  [ok]   config.yaml (profile: {profile}) — EDIT THIS before scaffolding step1!\n"))
@@ -426,15 +338,207 @@ scaffold_init <- function(profile = c("perturbseq", "plain"), target_dir) {
     cat("  [skip] config.yaml already exists — not overwriting\n")
   }
 
+  # h5_files/ ---------- always: this is where the user's own CellRanger .h5
+  # files go (templates/config.yaml's paths.h5_dir default already points here).
+  h5_dir_path <- file.path(target_dir, "h5_files")
+  if (!dir.exists(h5_dir_path)) {
+    dir.create(h5_dir_path)
+    cat("  [ok]   h5_files/  (put your CellRanger .h5 files here)\n")
+  } else {
+    cat("  [skip] h5_files/ already exists\n")
+  }
+
+  # gRNA/ ---------- perturbseq only. Left EMPTY on purpose — no example CSVs.
+  # The real NC_gRNA.csv/target_gRNA.csv get produced by scaffold_split_gRNA()
+  # (below) from the user's own feature_reference.csv, once they give you its
+  # path. See SKILL.md section 4.
+  if (profile == "perturbseq") {
+    gRNA_dir_path <- file.path(target_dir, "gRNA")
+    if (!dir.exists(gRNA_dir_path)) {
+      dir.create(gRNA_dir_path)
+      cat("  [ok]   gRNA/  (empty — ask the user to upload their feature_reference.csv here as gRNA/feature_ref.csv, then call scaffold_split_gRNA())\n")
+    } else {
+      cat("  [skip] gRNA/ already exists\n")
+    }
+  }
+
+  # markers.csv ---------- always: gene,cell_type long-format template, seeded
+  # with the shipped cardiac-progenitor example so the format is self-evident.
+  # The user edits this file directly (remove/add rows) instead of hand-editing
+  # YAML; Claude then reads it back into config.yaml's markers.cell_type_map/
+  # ct_levels right before the first dotplot-producing step.
+  markers_csv_path <- file.path(target_dir, "markers.csv")
+  if (!file.exists(markers_csv_path)) {
+    file.copy(file.path(TEMPLATES_DIR, "markers.csv"), markers_csv_path)
+    cat("  [ok]   markers.csv  (example cardiac-progenitor panel — edit for your tissue)\n")
+  } else {
+    cat("  [skip] markers.csv already exists\n")
+  }
+
   cat("\n=== INIT COMPLETE — no step folder copied yet ===\n")
   cat(glue("Next: open {config_dest} and fill in at minimum\n"))
   cat("paths.h5_dir / paths.h5_pattern / lanes, slurm.project_root/mail_user/log_dir/partition\n")
-  cat("(needed to fill in every slurm.sh's placeholders), and the markers.* panel for your tissue\n")
-  cat("(the shipped example panel is cardiac-progenitor-specific and will not apply to your data).\n")
+  cat("(needed to fill in every slurm.sh's placeholders). Drop your real .h5 files into h5_files/,\n")
+  if (profile == "perturbseq") {
+    cat("ask the user to upload their feature_reference.csv as gRNA/feature_ref.csv, then call\n")
+    cat("scaffold_split_gRNA(target_dir) to produce gRNA/NC_gRNA.csv and gRNA/target_gRNA.csv, and\n")
+  }
+  cat("edit markers.csv for your tissue's marker genes (Claude will read it into config.yaml's\n")
+  cat("markers.* block before the first dotplot step).\n")
   cat("THEN call scaffold_next_step(target_dir) to copy step1 — do this only after editing\n")
   cat("config.yaml, since step1's slurm.sh gets its placeholders substituted from whatever is in\n")
   cat("config.yaml at the moment it's copied.\n")
   invisible(target_dir)
+}
+
+#' Split the user's CellRanger CRISPR feature_reference.csv into NC/target guide CSVs.
+#'
+#' Reads `<target_dir>/gRNA/feature_ref.csv` — the user is asked to place their
+#' real feature_reference.csv there under that exact name (the same file given
+#' to `cellranger count --feature-ref=...`; must have `name` and
+#' `target_gene_name` columns) — splits rows where
+#' `target_gene_name == "Non-Targeting"` into `<target_dir>/gRNA/NC_gRNA.csv`
+#' and everything else into `<target_dir>/gRNA/target_gRNA.csv` (each a single
+#' `name` column — the only column init.R's nc_set/oeg_set actually read), and
+#' returns guide/gene counts for both files so the caller can confirm them
+#' with the user before writing `config.yaml`'s `paths.nc_gRNA_csv`/`oeg_gRNA_csv`.
+scaffold_split_gRNA <- function(target_dir) {
+  gRNA_dir_path <- file.path(target_dir, "gRNA")
+  feature_ref_csv <- file.path(gRNA_dir_path, "feature_ref.csv")
+  if (!file.exists(feature_ref_csv)) {
+    stop(glue(
+      "{feature_ref_csv} not found. Ask the user to place their CellRanger ",
+      "feature_reference.csv there, named exactly `feature_ref.csv`, then call ",
+      "scaffold_split_gRNA(target_dir) again."
+    ))
+  }
+
+  ref <- readr::read_csv(feature_ref_csv, show_col_types = FALSE)
+  missing_cols <- setdiff(c("name", "target_gene_name"), names(ref))
+  if (length(missing_cols) > 0) {
+    stop(glue("{feature_ref_csv} is missing column(s): {paste(missing_cols, collapse = ', ')}. ",
+              "Expected a CellRanger feature_reference.csv with at least `name` and `target_gene_name`."))
+  }
+
+  is_nc <- ref$target_gene_name == "Non-Targeting"
+  nc <- ref[is_nc, ]
+  target <- ref[!is_nc, ]
+
+  nc_csv_path <- file.path(gRNA_dir_path, "NC_gRNA.csv")
+  target_csv_path <- file.path(gRNA_dir_path, "target_gRNA.csv")
+  readr::write_csv(nc["name"], nc_csv_path)
+  readr::write_csv(target["name"], target_csv_path)
+
+  summary <- list(
+    nc_path = nc_csv_path,
+    nc_n_guides = nrow(nc),
+    nc_n_genes = length(unique(nc$target_gene_name)),
+    target_path = target_csv_path,
+    target_n_guides = nrow(target),
+    target_n_genes = length(unique(target$target_gene_name))
+  )
+  cat(glue("  [ok]   {basename(nc_csv_path)}: {summary$nc_n_guides} guides, {summary$nc_n_genes} gene(s)\n"))
+  cat(glue("  [ok]   {basename(target_csv_path)}: {summary$target_n_guides} guides, {summary$target_n_genes} gene(s)\n"))
+  cat("  Report these counts to the user and get explicit confirmation before writing\n")
+  cat("  config.yaml's paths.nc_gRNA_csv/oeg_gRNA_csv — see SKILL.md section 4.\n")
+  invisible(summary)
+}
+
+#' Detect lane names and the h5 filename pattern from uploaded .h5 files.
+#'
+#' The user is asked to upload their CellRanger `.h5` files into
+#' `<target_dir>/h5_files/`, one per lane, named `<lane>_<suffix>.h5` (lane
+#' name is everything before the FIRST underscore, e.g. `A1_filtered_feature_bc_matrix.h5`
+#' -> lane `"A1"`). This reads that directory, splits each filename at its
+#' first underscore, and errors out if the suffix isn't identical across every
+#' file (a single `h5_pattern` with `{lane}` substituted can't represent
+#' inconsistent suffixes), and errors out (with ready-to-show `mv` commands)
+#' if any detected lane is a bare number (e.g. `"1"`) — rename the file to add
+#' an `L` prefix (`"L1"`) and re-run rather than allowing a numeric lane name.
+#' Returns detected `lanes` (in `list.files()` order —
+#' present these to the user and let them confirm or reorder before writing
+#' `config.yaml`, since lane order controls left-to-right figure panel order)
+#' and the derived `h5_pattern`.
+scaffold_detect_lanes <- function(target_dir) {
+  h5_dir <- file.path(target_dir, "h5_files")
+  h5_files <- list.files(h5_dir, pattern = "\\.h5$", full.names = FALSE)
+  if (length(h5_files) == 0) {
+    stop(glue(
+      "No .h5 files found in {h5_dir} — ask the user to upload their CellRanger ",
+      ".h5 files there first, one per lane, named <lane>_<suffix>.h5 ",
+      "(e.g. A1_filtered_feature_bc_matrix.h5)."
+    ))
+  }
+  lane_of  <- function(f) regmatches(f, regexpr("^[^_]+", f))
+  suffix_of <- function(f, lane) sub(paste0("^", lane), "", f)
+  lanes <- vapply(h5_files, lane_of, character(1), USE.NAMES = FALSE)
+  suffixes <- mapply(suffix_of, h5_files, lanes)
+  if (length(unique(suffixes)) > 1) {
+    stop(glue(
+      "h5_files/ filenames don't share one consistent suffix after the lane prefix ",
+      "(found: {paste(unique(suffixes), collapse = ', ')}). Every file must be named ",
+      "<lane>_<same suffix>.h5 — ask the user to check/rename their files."
+    ))
+  }
+  is_numeric_lane <- grepl("^[0-9]+$", lanes)
+  if (any(is_numeric_lane)) {
+    bad_files <- h5_files[is_numeric_lane]
+    proposed  <- paste0("L", lanes[is_numeric_lane], suffixes[is_numeric_lane])
+    mv_cmds   <- glue("mv {file.path(h5_dir, bad_files)} {file.path(h5_dir, proposed)}")
+    stop(glue(
+      "Pure-numeric lane name(s) not allowed: {paste(unique(lanes[is_numeric_lane]), collapse = ', ')} ",
+      "(a bare number breaks downstream R factor/column handling). Show the user these rename ",
+      "commands (permission-prompt style per non-negotiable behavior 1), get confirmation, run them, ",
+      "then call scaffold_detect_lanes(target_dir) again:\n",
+      paste(mv_cmds, collapse = "\n")
+    ))
+  }
+  result <- list(lanes = lanes, h5_pattern = paste0("{lane}", suffixes[1]), files = h5_files)
+  cat(glue("  Detected {length(lanes)} lane(s) from h5_files/: {paste(lanes, collapse = ', ')}\n"))
+  cat(glue("  Derived h5_pattern: \"{result$h5_pattern}\"\n"))
+  cat("  Confirm this lane list/order with the user (it controls figure panel order)\n")
+  cat("  before writing config.yaml's lanes/paths.h5_pattern — see SKILL.md section 4.\n")
+  invisible(result)
+}
+
+#' Write a minimal SLURM smoke-test job into target_dir.
+#'
+#' Only relevant when `config$slurm$enabled` is true. Copies
+#' `templates/smoke_test.sh` to `<target_dir>/smoke_test.sh`, substituting
+#' `__PARTITION__`/`__LOG_DIR__`/`__MAIL_USER__`/`__PROJECT_ROOT__`/
+#' `__CONDA_ENV__` from `config.yaml` (cpus/mem/time are fixed, tiny values
+#' baked into the template itself — this job does nothing but confirm the
+#' partition accepts jobs, `log_dir` is writable, mail notifications fire,
+#' `project_root` is correct, and the conda env activates and can load Seurat
+#' and read config.yaml, all *inside* a submitted job rather than an
+#' interactive shell). Does NOT submit it — per non-negotiable behavior 1,
+#' show the user the resulting `sbatch smoke_test.sh` command and a summary,
+#' get confirmation, and only then run it yourself.
+scaffold_smoke_test <- function(target_dir) {
+  config_path <- file.path(target_dir, "config.yaml")
+  if (!file.exists(config_path)) {
+    stop(glue("{target_dir}/config.yaml not found — run scaffold_init() first."))
+  }
+  config <- yaml::read_yaml(config_path)
+  if (!isTRUE(config$slurm$enabled %||% FALSE)) {
+    stop("config.slurm.enabled is not true — smoke test only applies when using SLURM.")
+  }
+  raw_text <- paste(readLines(file.path(TEMPLATES_DIR, "smoke_test.sh"), warn = FALSE), collapse = "\n")
+  repl <- c(
+    `__MAIL_USER__`    = as.character(config$slurm$mail_user %||% "__MAIL_USER__"),
+    `__LOG_DIR__`       = as.character(config$slurm$log_dir %||% "__LOG_DIR__"),
+    `__PARTITION__`     = as.character(config$slurm$partition %||% "__PARTITION__"),
+    `__PROJECT_ROOT__`  = as.character(config$slurm$project_root %||% "__PROJECT_ROOT__"),
+    `__CONDA_ENV__`     = as.character(config$conda$env_name %||% "__CONDA_ENV__")
+  )
+  for (token in names(repl)) raw_text <- gsub(token, repl[[token]], raw_text, fixed = TRUE)
+  dest_path <- file.path(target_dir, "smoke_test.sh")
+  writeLines(raw_text, dest_path)
+  Sys.chmod(dest_path, "0755")
+  cat(glue("  [ok]   smoke_test.sh\n"))
+  cat("  Show the user: sbatch smoke_test.sh — get confirmation, run it, then check\n")
+  cat(glue("  {repl[['__LOG_DIR__']]}/slurm_<jobid>.log together before scaffolding step1.\n"))
+  invisible(dest_path)
 }
 
 # =============================================================================

@@ -61,7 +61,15 @@ p_rate <- ggplot(doublet_summary, aes(x = lane, y = doublet_rate)) +
 p <- wrap_plots(p_count, p_rate, nrow = 1) +
   plot_annotation(title = "Doublet detection summary (scDblFinder)")
 
-ggsave(file.path(figs_dir, "fig1_doublet_summary.png"), p, width = 12, height = 6, dpi = 300, bg = "white")
+# Fixed 2-panel layout (count, rate) — lanes sit on the x-axis WITHIN each
+# panel, not as separate panels. Width scales purely proportionally with
+# lane count via a fixed per-panel margin + a per-lane slot width.
+# Reproduces the original validated run's width=12 exactly at n=8 lanes.
+doublet_margin_per_panel <- 1
+doublet_width_per_lane   <- 0.625
+doublet_ncol             <- 2
+doublet_width <- doublet_ncol * (doublet_margin_per_panel + doublet_width_per_lane * length(lane_names))
+ggsave(file.path(figs_dir, "fig1_doublet_summary.png"), p, width = doublet_width, height = 6, dpi = 300, bg = "white")
 cat("Saved: figs/fig1_doublet_summary.png\n")
 
 cat("\n=== STEP 2 PLOT.R COMPLETE ===\n")

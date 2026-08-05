@@ -1,8 +1,20 @@
-# scrna-seq-clustering-pipeline
+# scrna-seq-clustering
 
 A [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) that scaffolds a validated, config-driven **Seurat** clustering pipeline for a **new** scRNA-seq or Perturb-seq/CRISPR-screen dataset — one step at a time, never running anything itself.
 
-Instead of writing 10-11 R scripts and a SLURM job for each new dataset from scratch, this skill interviews you for the study-specific values (lanes, h5 paths, marker genes, QC thresholds as they come up), writes each step's `process.R`/`plot.R`/`slurm.sh`, hands you the exact command to run, and stops — waiting for you to confirm the output looks right before writing the next step.
+Instead of writing 10-11 R scripts and a SLURM job for each new dataset from scratch, this skill interviews you for the study-specific values (lanes, h5 paths, marker genes, QC thresholds as they come up), writes each step's `process.R`/`plot.R`/`slurm.sh`, shows you the exact command it's about to run and waits for confirmation, then runs it and stops — waiting for you to confirm the output looks right before writing the next step.
+
+## Requirements
+
+R 4.4 + Seurat 5.5 stack (see `templates/environment.yml` for the full pinned list: qs2, scDblFinder, ComplexUpset, etc.), a SLURM cluster with `conda`/`mamba` available, and CellRanger-output `.h5` files per lane.
+
+## Using it
+
+In a Claude Code session in your project, just describe the dataset, e.g.:
+
+> I have a new Perturb-seq experiment, 4 lanes, CellRanger h5 files at `/data/mystudy/h5/{lane}.h5`. Can you get me set up?
+
+The skill will pick a profile, ask where the new run should live, walk you through the conda environment, collect `config.yaml`, and then scaffold `step1` — stopping there for you to run it and report back.
 
 ## Why one step at a time?
 
@@ -59,18 +71,10 @@ Shown as the 11-step perturbseq profile. Blue rectangles are scaffolded steps; a
 Drop this repo into your project's or user-level `.claude/skills/` directory:
 
 ```bash
-git clone https://github.com/zzzjjhhh/scrna-seq-clustering-pipeline.git .claude/skills/scrna-seq-clustering-pipeline
+git clone https://github.com/zzzjjhhh/scrna-seq-clustering.git .claude/skills/scrna-seq-clustering
 ```
 
 Claude Code picks up any skill under `.claude/skills/` automatically — no further registration needed.
-
-## Using it
-
-In a Claude Code session in your project, just describe the dataset, e.g.:
-
-> I have a new Perturb-seq experiment, 4 lanes, CellRanger h5 files at `/data/mystudy/h5/{lane}.h5`. Can you get me set up?
-
-The skill will pick a profile, ask where the new run should live, walk you through the conda environment, collect `config.yaml`, and then scaffold `step1` — stopping there for you to run it and report back.
 
 ## Repository layout
 
@@ -81,17 +85,19 @@ references/
   pipeline-perturbseq.md        # full 11-step spec, perturbseq profile
   pipeline-plain.md             # full 10-step spec, plain profile
 templates/
-  config.yaml.template          # config schema with every key documented
-  environment.yml.template      # conda environment definition
+  config.yaml                   # config schema (no inline comments — see references/conventions.md)
+  environment.yml               # conda environment definition
+  markers.csv                   # example gene,cell_type panel scaffold_init() copies into each run
+  smoke_test.sh                 # tiny sbatch job scaffold_smoke_test() writes to verify SLURM settings
+  perturbseq/CLAUDE.md          # scaffolded into each perturbseq run's root by scaffold_init()
+  perturbseq/init.R             # scaffolded into each perturbseq run's root by scaffold_init()
   perturbseq/stepN_xxx/         # process.R + plot.R + slurm.sh per step
+  plain/CLAUDE.md               # scaffolded into each plain run's root by scaffold_init()
+  plain/init.R                  # scaffolded into each plain run's root by scaffold_init()
   plain/stepN_xxx/              # same, for the plain profile
 scripts/
   scaffold.R                    # scaffold_init() / scaffold_next_step()
 ```
-
-## Requirements
-
-R 4.4 + Seurat 5.5 stack (see `templates/environment.yml.template` for the full pinned list: qs2, scDblFinder, ComplexUpset, etc.), a SLURM cluster with `conda`/`mamba` available, and CellRanger-output `.h5` files per lane.
 
 ## License
 

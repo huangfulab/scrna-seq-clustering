@@ -279,7 +279,16 @@ p <- wrap_plots(
   nrow = 2, axis_titles = "collect"
 ) + plot_annotation(title = "QC metrics per lane (post-filter)")
 
-ggsave(file.path(figs_dir, "fig5_qc_filter.png"), p, width = 14, height = 8, dpi = 300, bg = "white")
+# Fixed 2x2 metric grid — lanes sit on the x-axis WITHIN each panel, not as
+# separate panels. Width = ncol panels * (fixed per-panel margin for axis/
+# labels + a per-lane slot width * n lanes) — the frame content scales
+# purely proportionally with lane count; only the margin term is fixed.
+# Reproduces the original validated run's width=14 exactly at n=8 lanes.
+qc_violin_margin_per_panel <- 1
+qc_violin_width_per_lane   <- 0.75
+qc_violin_ncol             <- 2
+qc_violin_width <- qc_violin_ncol * (qc_violin_margin_per_panel + qc_violin_width_per_lane * length(lane_names))
+ggsave(file.path(figs_dir, "fig5_qc_filter.png"), p, width = qc_violin_width, height = 8, dpi = 300, bg = "white")
 cat("Saved: figs/fig5_qc_filter.png\n")
 
 # tbl2: post-filter QC summary ----------
