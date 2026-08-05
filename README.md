@@ -1,6 +1,6 @@
 # scrna-seq-clustering-pipeline
 
-A [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) that scaffolds a validated, config-driven Seurat clustering pipeline for a **new** scRNA-seq or Perturb-seq/CRISPR-screen dataset — one step at a time, never running anything itself.
+A [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) that scaffolds a validated, config-driven **Seurat** clustering pipeline for a **new** scRNA-seq or Perturb-seq/CRISPR-screen dataset — one step at a time, never running anything itself.
 
 Instead of writing 10-11 R scripts and a SLURM job for each new dataset from scratch, this skill interviews you for the study-specific values (lanes, h5 paths, marker genes, QC thresholds as they come up), writes each step's `process.R`/`plot.R`/`slurm.sh`, hands you the exact command to run, and stops — waiting for you to confirm the output looks right before writing the next step.
 
@@ -24,7 +24,7 @@ flowchart TD
     S1["step1_load"] --> D1{"UMI threshold?"}
     D1 --> S2["step2_assign"]
     S2 --> D2{"QC cutoffs?"}
-    D2 --> S3["step3_doublet"]
+    D2 --> S3["step3_doublet\n*DoubletFinder*"]
     S3 --> D3{"MOI range?"}
     D3 --> S4["step4_filter"]
     S4 --> S5["step5_PCA"]
