@@ -115,7 +115,7 @@ For each step:
 
 1. Scaffold that step's scripts.
 2. Show the user, permission-prompt style, the exact `sbatch <path>/slurm.sh` command (or the two `conda run -n <env> Rscript ...` commands, if they'd rather run interactively), plus a plain-language summary of what it does (which script runs, what it reads/writes, roughly how long it takes), then ask for confirmation before running it.
-3. Once confirmed, run it (submit the `sbatch` job or run the `conda run` commands yourself) and monitor until it finishes.
+3. Once confirmed, run it (submit the `sbatch` job or run the `conda run` commands yourself) and monitor until it finishes. For `sbatch` jobs, a `COMPLETED`/`0:0` `sacct` result is not proof of success — these `slurm.sh` scripts don't use `set -e` by design, so read the actual `.log`/`.err` files in `slurm.log_dir` for real errors before treating the job as done (see `references/conventions.md`'s SLURM section).
 4. Tell them, in plain language, what to check now that it's finished (see the checkpoint table — and the fuller explanation in `references/pipeline-*.md`).
 5. Wait for the user's reply. Only once they've confirmed the outputs look right (and supplied any needed value) do you scaffold the next step.
 

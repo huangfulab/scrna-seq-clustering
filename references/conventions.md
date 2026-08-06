@@ -10,7 +10,7 @@ If the new run needs to reach a shared resource one level up (e.g. a `gRNA/` dir
 
 ## config.yaml
 
-Every step script reads `config <- yaml::read_yaml(here::here("config.yaml"))` once, via `init.R` (so it's available everywhere `source(here::here("init.R"))` runs — no step repeats the read). Full schema, with the exact key path each pipeline step reads it from:
+Every step script reads `config <- yaml::read_yaml(here::here("config.yaml"))` once, via `init.R` (so it's available everywhere `source(here::here("init.R"))` runs — no step repeats the read). `config.yaml` is edited by Claude Code, not read by the user directly (they answer the interview in chat) — keep it free of per-field explanatory comments; this table is the schema documentation, not the file itself. Full schema, with the exact key path each pipeline step reads it from:
 
 | Key | Meaning | Read by |
 |---|---|---|
@@ -48,6 +48,8 @@ Every `slurm.sh` this skill writes must keep the four directives required projec
 plus `--cpus-per-task`/`--mem`/`--time`/`--partition` from `slurm.resources.<step>`, a `conda activate <conda.env_name>` line, and `cd <slurm.project_root>`. `scripts/scaffold.R` fills these in from `config.yaml` when it copies a step's `slurm.sh` template — the template itself only has `__PLACEHOLDER__` tokens, since a shell script can't read YAML on its own.
 
 **The skill shows the user the `sbatch` command and confirms before running it — then runs it itself.** See `SKILL.md`'s non-negotiable behaviors.
+
+**A `COMPLETED`/`0:0` `sacct` result does not mean the R script succeeded.** These `slurm.sh` scripts deliberately don't use `set -e` — if `process.R` errors out, the script still goes on to run `plot.R` (which then usually fails too, for the same root cause), and the job's own exit code is just whatever the last command (typically a final `echo`) returned, i.e. `0`. This is intentional, not a bug to fix. After any job finishes (whatever `sacct` reports), read the actual `.log`/`.err` files in `slurm.log_dir` and look for real errors (e.g. "Execution halted", R error text) before telling the user it succeeded.
 
 ## Conda environment
 

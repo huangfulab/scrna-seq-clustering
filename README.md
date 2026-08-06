@@ -1,12 +1,12 @@
 # scrna-seq-clustering
 
-A [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) that scaffolds a validated, config-driven **Seurat** clustering pipeline for a **new** scRNA-seq or Perturb-seq/CRISPR-screen dataset — one step at a time, never running anything itself.
+A [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) that scaffolds a validated, config-driven **Seurat** clustering pipeline for a **new** scRNA-seq or Perturb-seq/CRISPR-screen dataset — one step at a time, confirming with you before it runs anything.
 
-Instead of writing 10-11 R scripts and a SLURM job for each new dataset from scratch, this skill interviews you for the study-specific values (lanes, h5 paths, marker genes, QC thresholds as they come up), writes each step's `process.R`/`plot.R`/`slurm.sh`, shows you the exact command it's about to run and waits for confirmation, then runs it and stops — waiting for you to confirm the output looks right before writing the next step.
+Instead of writing 10-11 R scripts and a SLURM job for each new dataset from scratch, this skill interviews you for the study-specific values (lanes, h5 paths, marker genes, QC thresholds as they come up), writes each step's `process.R`/`plot.R`/`slurm.sh`, shows you the exact command it's about to run and waits for confirmation, then runs it itself and stops — waiting for you to confirm the output looks right before writing the next step.
 
 ## Requirements
 
-R 4.4 + Seurat 5.5 stack (see `templates/environment.yml` for the full pinned list: qs2, scDblFinder, ComplexUpset, etc.), a SLURM cluster with `conda`/`mamba` available, and CellRanger-output `.h5` files per lane.
+R 4.4 + Seurat 5.5 stack (see `templates/environment.yml` for the full pinned list: qs2, scDblFinder, ComplexUpset, etc.), `conda`/`mamba` available, and CellRanger-output `.h5` files per lane. A SLURM cluster is optional — steps can instead run interactively via `conda run`.
 
 ## Using it
 
@@ -14,15 +14,16 @@ In a Claude Code session in your project, just describe the dataset, e.g.:
 
 > I have a new Perturb-seq experiment, 4 lanes, CellRanger h5 files at `/data/mystudy/h5/{lane}.h5`. Can you get me set up?
 
-The skill will pick a profile, ask where the new run should live, walk you through the conda environment, collect `config.yaml`, and then scaffold `step1` — stopping there for you to run it and report back.
+The skill will pick a profile, ask where the new run should live, walk you through the conda environment, collect `config.yaml`, and then scaffold `step1` — showing you the command it's about to run, running it itself once you confirm, and waiting for you to confirm the output looks right before scaffolding step2.
 
 ## Why one step at a time?
 
-Three rules the skill follows strictly (see `SKILL.md` for the full rationale):
+Rules the skill follows strictly (see `SKILL.md`'s six non-negotiable behaviors for the full rationale):
 
-1. **Never executes anything.** It only writes files and gives you the `sbatch`/`conda run` command — you stay in control of what actually runs on the cluster.
+1. **Confirms before executing, then runs it itself.** Every command — env creation, `sbatch`, `conda run` — is shown permission-prompt style (what it does, roughly how long it takes) before the skill runs it, so you stay in control of what actually runs on the cluster without having to copy-paste every command by hand.
 2. **Hard stop after every step.** Even mechanical steps with nothing new to decide still require you to confirm before the next step gets scaffolded.
-3. **Explains checkpoints in plain language.** No "confirm UMI_THRESHOLD" — it explains what the figure shows and what moving the value up/down does, assuming no prior Seurat experience.
+3. **Explains every parameter in plain language.** No "confirm UMI_THRESHOLD" — it explains what the figure shows and what moving the value up/down does, assuming no prior Seurat experience, including the "safe default" blocks and not just the marquee checkpoints.
+4. **Never writes a `config.yaml` value without asking.** Every field — SLURM contact/paths, conda env name, the "safe" scientific defaults inherited from the original validated run — gets shown to you and confirmed explicitly, never silently auto-filled.
 
 ## The two profiles
 
@@ -96,7 +97,8 @@ templates/
   plain/init.R                  # scaffolded into each plain run's root by scaffold_init()
   plain/stepN_xxx/              # same, for the plain profile
 scripts/
-  scaffold.R                    # scaffold_init() / scaffold_next_step()
+  scaffold.R                    # scaffold_init() / scaffold_next_step() / scaffold_detect_lanes() /
+                                 # scaffold_split_gRNA() / scaffold_smoke_test()
 ```
 
 ## License

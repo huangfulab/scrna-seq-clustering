@@ -19,6 +19,11 @@ Or via SLURM, where a step has a `slurm.sh`:
 sbatch stepN_xxx/scripts/slurm.sh
 ```
 
+`slurm.sh` does not use `set -e` (deliberately, so a failed `process.R` still lets `plot.R`
+run and surface its own error). A `COMPLETED`/`0:0` `sacct` result is not proof the R script
+succeeded — always read the job's `.log`/`.err` files in `slurm.log_dir` for real errors
+before treating a step as done.
+
 ## config.yaml — single source of truth
 
 Every tunable number/path for this pipeline lives in `config.yaml`, not hardcoded in any
