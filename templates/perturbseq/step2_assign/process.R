@@ -62,9 +62,6 @@ lane_results <- future_lapply(lane_names, function(lane) {
     , !colnames(obj@meta.data) %in% drop_cols, drop = FALSE
   ]
 
-  # Remove CRISPR assay (guide info now in metadata)
-  obj[["CRISPR"]] <- NULL
-
   qs_save(obj, file = here("step2_assign", "obj1_assign", glue("{lane}.qs2")))
   cat(" saved:", ncol(obj), "cells\n")
 
