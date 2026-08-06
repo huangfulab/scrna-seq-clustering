@@ -11,7 +11,7 @@ R 4.4 + Seurat 5.5 stack (see `templates/environment.yml` for the full pinned li
 ## How to install
 
 ```bash
-git clone https://github.com/zzzjjhhh/scrna-seq-clustering.git ~/.claude/skills/scrna-seq-clustering
+git clone https://github.com/huangfulab/scrna-seq-clustering.git ~/.claude/skills/scrna-seq-clustering
 ```
 
 Claude Code picks up any skill under `.claude/skills/` automatically — no further registration needed.
